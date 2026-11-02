@@ -3,10 +3,14 @@ representatives and linker-level redundancy removal (docs/design.md §8)."""
 
 from __future__ import annotations
 
+import hashlib
+import json
 import logging
 import random
 from collections import defaultdict
+from pathlib import Path
 
+import numpy as np
 import pandas as pd
 from Bio import Align
 from Bio.Align import substitution_matrices
@@ -123,20 +127,22 @@ def identity(a: str, b: str, aligner: Align.PairwiseAligner | None = None) -> fl
 
 
 def align_pair(a: str, b: str, aligner: Align.PairwiseAligner | None = None):
-    """Return ``(identity, alignment)`` with identity over the shorter sequence."""
+    """Return ``(identity, blocks)``: identity over the shorter sequence and the aligned
+    blocks as ``((a0, a1, b0, b1), ...)`` (0-based, half-open), small enough to cache."""
     if not a or not b:
         return 0.0, None
     aligner = aligner or _aligner()
     aln = aligner.align(_clean(a), _clean(b))[0]
     ident = aln.counts().identities
-    return ident / min(len(a), len(b)), aln
+    blocks = tuple((int(a0), int(a1), int(b0), int(b1)) for (a0, a1), (b0, b1) in zip(*aln.aligned))
+    return ident / min(len(a), len(b)), blocks
 
 
-def map_position(aln, pos: int) -> int | None:
+def map_position(blocks, pos: int) -> int | None:
     """Map a 1-based position of the first sequence onto the second (nearest aligned block)."""
     p = pos - 1
     best = None
-    for (a0, a1), (b0, b1) in zip(*aln.aligned):
+    for a0, a1, b0, b1 in blocks:
         if a0 <= p < a1:
             return b0 + (p - a0) + 1
         dist = a0 - p if p < a0 else p - a1 + 1
@@ -144,6 +150,49 @@ def map_position(aln, pos: int) -> int | None:
         if best is None or dist < best[0]:
             best = (dist, cand)
     return None if best is None else best[1]
+
+
+_ALPHA = {c: i for i, c in enumerate("ARNDCQEGHILKMFPSTWYVBZXUO")}
+
+
+def kmer_index(seq: str, k: int = 3) -> tuple[np.ndarray, np.ndarray, int]:
+    """Sorted k-mer codes of ``seq`` with their positions (for :func:`diagonal_hits`)."""
+    x = np.array([_ALPHA.get(c, 22) for c in seq.upper()], dtype=np.int64)
+    n = len(x) - k + 1
+    if n <= 0:
+        return np.zeros(0, np.int64), np.zeros(0, np.int64), len(seq)
+    codes = np.zeros(n, dtype=np.int64)
+    for t in range(k):
+        codes = codes * 25 + x[t:t + n]
+    order = np.argsort(codes, kind="stable")
+    return codes[order], order, len(seq)
+
+
+def diagonal_hits(ia, ib, band: int = 10) -> int:
+    """Largest number of shared k-mers within one band of ``2*band+1`` alignment diagonals.
+
+    Homologous chains concentrate shared k-mers on a few diagonals while chance
+    matches are spread over all of them, so this is a cheap pre-filter for the
+    full alignment (calibration in docs/design.md §11.5).
+    """
+    ca, pa, la = ia
+    cb, pb, lb = ib
+    if not len(ca) or not len(cb):
+        return 0
+    lo = np.searchsorted(ca, cb, "left")
+    n = np.searchsorted(ca, cb, "right") - lo
+    total = int(n.sum())
+    if total == 0:
+        return 0
+    jb = np.repeat(pb, n)
+    first = np.repeat(lo, n) + (np.arange(total) - np.repeat(np.cumsum(n) - n, n))
+    offs = pa[first] - jb + lb
+    cnt = np.bincount(offs, minlength=la + lb + 1)
+    csum = np.concatenate([[0], np.cumsum(cnt)])
+    w = 2 * band + 1
+    if len(cnt) <= w:
+        return total
+    return int((csum[w:] - csum[:-w]).max())
 
 
 def _overlaps(lo1, hi1, lo2, hi2) -> bool:
@@ -154,8 +203,59 @@ def _anchors(row) -> tuple[int, int]:
     return int(row["ss_start"]) - 1, int(row["ss_end"]) + 1
 
 
+class AlignmentCache:
+    """Chain-pair alignment results, optionally persisted as JSON lines.
+
+    Keys include a hash of both sequences, so a changed SEQRES invalidates the
+    entry. Appending as results arrive makes an interrupted dedup resumable.
+    """
+
+    def __init__(self, path: Path | None = None) -> None:
+        self.path = Path(path) if path else None
+        self.mem: dict[str, tuple] = {}
+        self._fh = None
+        self._pending = 0
+        if self.path and self.path.exists():
+            with open(self.path) as fh:
+                for line in fh:
+                    try:
+                        rec = json.loads(line)
+                    except ValueError:
+                        continue  # truncated last line after a crash
+                    blocks = tuple(tuple(b) for b in rec["b"]) if rec["b"] is not None else None
+                    self.mem[rec["k"]] = (rec["i"], blocks)
+
+    @staticmethod
+    def key(ca, cb, sa: str, sb: str) -> str:
+        h = hashlib.sha1(f"{sa}|{sb}".encode()).hexdigest()[:12]
+        return f"{ca[0]}_{ca[1]}|{cb[0]}_{cb[1]}|{h}"
+
+    def get(self, key):
+        return self.mem.get(key)
+
+    def put(self, key, value, persist_blocks: bool) -> None:
+        ident, blocks = value
+        self.mem[key] = value
+        if self.path is None:
+            return
+        if self._fh is None:
+            self.path.parent.mkdir(parents=True, exist_ok=True)
+            self._fh = open(self.path, "a")
+        self._fh.write(json.dumps({"k": key, "i": round(ident, 4), "b": blocks if persist_blocks else None}) + "\n")
+        self._pending += 1
+        if self._pending >= 500:
+            self._fh.flush()
+            self._pending = 0
+
+    def close(self) -> None:
+        if self._fh is not None:
+            self._fh.close()
+            self._fh = None
+
+
 def dedup_linkers(linkers: pd.DataFrame, priority: list[str], threshold: float = 0.40,
-                  chain_seqs: dict[tuple[str, str], str] | None = None, tolerance: int = 3) -> pd.DataFrame:
+                  chain_seqs: dict[tuple[str, str], str] | None = None, tolerance: int = 3,
+                  min_diagonal_hits: int = 5, cache_path: Path | None = None) -> pd.DataFrame:
     """Remove linkers that are redundant with a better-ranked linker from another chain.
 
     1. same UniProt accession and overlapping UniProt interval (anchors included);
@@ -163,6 +263,9 @@ def dedup_linkers(linkers: pd.DataFrame, priority: list[str], threshold: float =
        the shorter chain (no coverage requirement), and the alignment maps one
        junction onto the other (within ``tolerance`` residues).
 
+    Before aligning two chains, :func:`diagonal_hits` must reach ``min_diagonal_hits``;
+    with the default of 5 no chain pair with >= 40 % identity was missed in a
+    calibration on 25,000 same-superfamily pairs (docs/design.md §11.5).
     Linkers of the same chain are never compared: they are different junctions.
     Dropped linkers are reported in ``result.attrs['dropped']`` (``{id: reason}``).
     """
@@ -185,10 +288,15 @@ def dedup_linkers(linkers: pd.DataFrame, priority: list[str], threshold: float =
             kept_by_unp[acc].append((lo, hi, row["linker_id"], chain_of[i]))
     if chain_seqs is not None:
         aligner = _aligner()
-        cache: dict[tuple, tuple] = {}
+        cache = AlignmentCache(cache_path)
+        n_cached = len(cache.mem)
+        kidx: dict[tuple, tuple] = {}
+        anchors = [_anchors(r) for _, r in df.iterrows()]
         kept_by_pair: dict[tuple, list[int]] = defaultdict(list)
-        n_aln = 0
+        n_aln = n_skip = 0
         for i, row in df.iterrows():
+            if i and i % 2000 == 0:
+                log.info("linker dedup: %d / %d linkers, %d alignments, %d pre-filtered", i, len(df), n_aln, n_skip)
             if not keep_mask[i]:
                 continue
             key = (row["cath_n"] if isinstance(row["cath_n"], str) else "?",
@@ -196,22 +304,31 @@ def dedup_linkers(linkers: pd.DataFrame, priority: list[str], threshold: float =
             seq_i = chain_seqs.get(chain_of[i])
             hit = None
             if seq_i:
-                lo_i, hi_i = _anchors(row)
+                lo_i, hi_i = anchors[i]
                 for j in kept_by_pair[key]:
                     if chain_of[j] == chain_of[i]:
                         continue
                     seq_j = chain_seqs.get(chain_of[j])
                     if not seq_j:
                         continue
-                    pair = (chain_of[i], chain_of[j])
-                    if pair not in cache:
-                        n_aln += 1
-                        cache[pair] = align_pair(seq_i, seq_j, aligner)
-                    ident, aln = cache[pair]
-                    if ident < threshold or aln is None:
+                    ckey = AlignmentCache.key(chain_of[i], chain_of[j], seq_i, seq_j)
+                    res = cache.get(ckey)
+                    if res is None:
+                        ki = kidx.setdefault(chain_of[i], kmer_index(seq_i))
+                        kj = kidx.setdefault(chain_of[j], kmer_index(seq_j))
+                        if diagonal_hits(ki, kj) < min_diagonal_hits:
+                            n_skip += 1
+                            res = (0.0, None)
+                            cache.mem[ckey] = res  # cheap to recompute: not persisted
+                        else:
+                            n_aln += 1
+                            res = align_pair(seq_i, seq_j, aligner)
+                            cache.put(ckey, res, persist_blocks=res[0] >= threshold)
+                    ident, blocks = res
+                    if ident < threshold or blocks is None:
                         continue
-                    m_lo, m_hi = map_position(aln, max(lo_i, 1)), map_position(aln, min(hi_i, len(seq_i)))
-                    lo_j, hi_j = _anchors(df.loc[j])
+                    m_lo, m_hi = map_position(blocks, max(lo_i, 1)), map_position(blocks, min(hi_i, len(seq_i)))
+                    lo_j, hi_j = anchors[j]
                     if None not in (m_lo, m_hi) and _overlaps(m_lo, m_hi, lo_j - tolerance, hi_j + tolerance):
                         hit = f"{df.at[j, 'linker_id']}({ident:.2f})"
                         break
@@ -220,7 +337,10 @@ def dedup_linkers(linkers: pd.DataFrame, priority: list[str], threshold: float =
                 dropped[row["linker_id"]] = f"homologous_chain:{hit}"
             else:
                 kept_by_pair[key].append(i)
-        log.info("linker dedup: %d chain alignments", n_aln)
+        cache.close()
+        log.info("linker dedup: %d chain alignments (%d reused from cache), %d chain pairs skipped by the "
+                 "k-mer pre-filter", n_aln, n_cached, n_skip)
+        linkers.attrs["n_alignments"] = n_aln
     log.info("linker dedup: %d dropped of %d", len(dropped), len(df))
     out = df[keep_mask].reset_index(drop=True)
     out.attrs["dropped"] = dropped

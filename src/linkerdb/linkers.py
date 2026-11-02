@@ -311,9 +311,18 @@ def extract_linkers(chain: Chain, mapped: MappedChain, ss: str, rules: Rules = R
         # geometric plausibility across the junction (catches numbering errors)
         # A chain cannot span more than ~3.8 Å per residue, whatever is missing in between,
         # so a violation means the SEQRES/author numbering of the model is inconsistent.
+        # Checked for the junction residues and for every pair of consecutive *modelled*
+        # residues across the linker and its anchors (catches e.g. a proteolytically
+        # cleaved loop that SEQRES still presents as continuous: cleaved serpin 3nda).
         d_es = _dist(_ca(chain, e), _ca(chain, s))
         if d_es is not None and s > e and d_es > rules.ca_step_max * (s - e) + rules.ca_tol:
             flags.append("geometry_violation")
+        else:
+            span_obs = [i for i in range(lo, hi + 1) if _ca(chain, i) is not None]
+            for i, j in zip(span_obs, span_obs[1:]):
+                if _dist(_ca(chain, i), _ca(chain, j)) > rules.ca_step_max * (j - i) + rules.ca_tol:
+                    flags.append("geometry_violation")
+                    break
 
         residues = chain.residues[left - 1:right]
         nonstd = sorted({r.mon_id for r in residues if r.nonstandard})

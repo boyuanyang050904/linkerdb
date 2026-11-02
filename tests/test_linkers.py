@@ -161,11 +161,17 @@ def test_missing_residues_and_disorder():
 
 
 def test_chain_break_and_geometry_violation():
-    ch, m = two_domains(shift_after=33)  # break inside the linker (between 33 and 34)
+    # mild break (stretched C-N bond, CA-CA still 3.8 Å): chain_break only
+    ch, m = two_domains()
+    ch.coords[33, 0, 1] += 1.7  # move N of residue 34 away from C of 33 (C-N ~2.2 Å)
     ss = "H" * 28 + "-" * 8 + "H" * 24
     (rec,) = extract_linkers(ch, m, ss)
     assert rec["n_breaks"] == 1 and "chain_break" in rec["qc_flags"]
-    assert "geometry_violation" not in rec["qc_flags"]
+    assert "geometry_violation" not in rec["qc_flags"] and rec["qc_pass"]
+    # modelled neighbours 14 Å apart inside the linker: impossible for a continuous chain
+    ch, m = two_domains(shift_after=33)
+    (rec,) = extract_linkers(ch, m, ss)
+    assert {"chain_break", "geometry_violation"} <= set(rec["qc_flags"]) and not rec["qc_pass"]
     ch, m = two_domains(shift_after=30)  # consecutive junction residues 10 Å apart
     (rec,) = extract_linkers(ch, m, "H" * 60)
     assert "geometry_violation" in rec["qc_flags"] and not rec["qc_pass"]
@@ -254,3 +260,14 @@ def test_real_fusion_2rh1_is_flagged(cath):
     ch, m, recs = _real(cath, "2rh1", "A")
     assert natural_problem(ch)[0] == "chimera"
     assert all("unp_discontinuous" in r["qc_flags"] for r in recs)
+
+
+def test_geometry_violation_across_missing_residues():
+    # cleaved loop (like serpin 3nda): 2 unmodelled residues but the modelled ends are 40 Å apart
+    obs = "1" * 31 + "00" + "1" * 27
+    ch, m = two_domains(observed=obs, shift_after=33, cut=31)
+    ch.coords[33:, :, 0] += 30.0
+    ss = "H" * 28 + "----" + "??" + "--" + "H" * 24
+    (rec,) = extract_linkers(ch, m, ss)
+    assert rec["ca_junction"] is None  # junction residue unmodelled: the old check could not see it
+    assert "geometry_violation" in rec["qc_flags"] and not rec["qc_pass"]

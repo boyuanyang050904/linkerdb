@@ -7,7 +7,7 @@ from linkerdb.domains import CathProvider
 from linkerdb.domains.cath import cath_paths
 from linkerdb.download import DownloadError
 from linkerdb.selection import (align_pair, attach_clusters, candidate_chains, chains_of_entries, dedup_linkers,
-                                identity, map_position, rank_candidates, sample_entries)
+                                diagonal_hits, identity, kmer_index, map_position, rank_candidates, sample_entries)
 from linkerdb.sifts import fetch_sifts, load_sifts
 from linkerdb.sources import (fetch_entity_info, fetch_indices, index_paths, parse_clusters, parse_entry_type,
                               parse_resolu)
@@ -160,3 +160,30 @@ def test_dedup_linkers():
     assert dropped["c_A_1"].startswith("homologous_chain:a_A_1")
     # without chain sequences only the UniProt rule applies
     assert set(dedup_linkers(df, ["resolution"])["linker_id"]) == set(df["linker_id"]) - {"b_A_1"}
+
+
+def test_diagonal_hits_prefilter():
+    import random
+    rnd = random.Random(3)
+    a = "".join(rnd.choice("ACDEFGHIKLMNPQRSTVWY") for _ in range(300))
+    b = "".join(rnd.choice("ACDEFGHIKLMNPQRSTVWY") for _ in range(300))
+    shifted = "GGGGGGGGGG" + a[:150] + "W" + a[150:]  # same protein with an extension and an insertion
+    assert diagonal_hits(kmer_index(a), kmer_index(a)) >= 298  # whole main diagonal (+ chance repeats)
+    assert diagonal_hits(kmer_index(a), kmer_index(shifted)) >= 140
+    assert diagonal_hits(kmer_index(a), kmer_index(b)) < 5
+    assert diagonal_hits(kmer_index("AC"), kmer_index(a)) == 0
+    assert diagonal_hits(kmer_index("ACDE"), kmer_index("ACDE")) == 2  # shorter than one band
+    assert kmer_index("")[2] == 0
+
+
+def test_dedup_alignment_cache_is_persistent(tmp_path):
+    seq = "MKTAYIAKQRQISFVKSHFSRQLEERLGLIEVQAPILSRVGDGTQDNLSGAEKAVQVKVKALPDAQFEVVHSLAKWKRQTLGQHDFSAGEGLYTHMKALRPDEDRLS"
+    df = pd.DataFrame([_lk("a_A_1", "aaaa", "A", "P1", 1, 5, res=1.5), _lk("c_A_1", "cccc", "A", "P9", 1, 5, res=2.0)])
+    seqs = {("aaaa", "A"): seq, ("cccc", "A"): seq[:60] + "W" * 10 + seq[70:]}
+    cache = tmp_path / "aln.jsonl"
+    first = dedup_linkers(df, ["resolution"], 0.4, chain_seqs=seqs, cache_path=cache)
+    assert first.attrs["dropped"] and df.attrs["n_alignments"] == 1
+    with open(cache, "a") as fh:
+        fh.write('{"k": "trunc')  # interrupted append
+    second = dedup_linkers(df, ["resolution"], 0.4, chain_seqs=seqs, cache_path=cache)
+    assert df.attrs["n_alignments"] == 0 and second.attrs["dropped"] == first.attrs["dropped"]

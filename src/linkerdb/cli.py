@@ -156,7 +156,7 @@ def cmd_build(args) -> int:
         seqs = {(r.pdb_id, r.auth_asym_id): r.sequence for r in chains.itertuples()
                 if isinstance(getattr(r, "sequence", None), str)}
         final = dedup_linkers(final, ["resolution", "pdb_id", "auth_asym_id", "junction_index"],
-                              rules.dedup_identity, chain_seqs=seqs)
+                              rules.dedup_identity, chain_seqs=seqs, cache_path=run.dir / "alignments.jsonl")
         dropped = final.attrs.get("dropped", {})
         linkers["dedup_dropped"] = linkers["linker_id"].map(dropped)
     else:
