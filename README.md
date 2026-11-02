@@ -39,6 +39,14 @@ Key columns: `gap_*` = residues CATH leaves unassigned between two domains (stri
 `ss_*` = structural linker (coil stretch between the last SSE of the N-terminal and the first SSE of the
 C-terminal domain, DSSP-based). Positions are SEQRES indices (`label_seq_id`); `*_auth` are author numbers.
 
+## Current dataset (`results/full/`, built 2026-11-02)
+
+CATH v4.4.0 domains, resolution <= 2.5 Å, RCSB 40 % clusters + linker-level dedup:
+**13,922 linkers** from 7,207 chains (7,094 entries, 7,173 UniProt accessions, 1,826 taxa).
+Structural linker length: median 7 (non-empty), 11.5 % zero-length (helix/strand-spanning junctions).
+`results/sample50/` holds the 50-entry validation sample. Full statistics, checks and the
+run record are in `docs/design.md` §11; `python scripts/check_dataset.py results/full` re-runs the invariant checks.
+
 ## Tests
 
 ```bash

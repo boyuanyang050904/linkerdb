@@ -1,0 +1,83 @@
+2026-11-02 22:31:39,002 INFO linkerdb: domain source: using CATH v4.4.0
+2026-11-02 22:31:40,147 INFO linkerdb: candidates: 102283 chains in 52514 entries (resolution <= 2.50)
+2026-11-02 22:31:45,184 INFO linkerdb: clusters: 8125 (57628 ranked chains)
+2026-11-02 22:31:46,837 INFO linkerdb: attempt 1: 8125 clusters
+2026-11-02 22:31:47,802 INFO linkerdb.pipeline: full: 7980 entries total, 7980 to process
+2026-11-02 22:31:52,329 INFO linkerdb.pipeline: downloaded/cached 7980 entries in 4.5s
+2026-11-02 22:31:58,104 INFO linkerdb.pipeline: processed 200 / 7980 entries
+2026-11-02 22:32:02,988 INFO linkerdb.pipeline: processed 400 / 7980 entries
+2026-11-02 22:32:07,003 INFO linkerdb.pipeline: processed 600 / 7980 entries
+2026-11-02 22:32:11,167 INFO linkerdb.pipeline: processed 800 / 7980 entries
+2026-11-02 22:32:15,965 INFO linkerdb.pipeline: processed 1000 / 7980 entries
+2026-11-02 22:32:20,484 INFO linkerdb.pipeline: processed 1200 / 7980 entries
+2026-11-02 22:32:23,606 INFO linkerdb.pipeline: processed 1400 / 7980 entries
+2026-11-02 22:32:27,856 INFO linkerdb.pipeline: processed 1600 / 7980 entries
+2026-11-02 22:32:32,476 INFO linkerdb.pipeline: processed 1800 / 7980 entries
+2026-11-02 22:32:36,697 INFO linkerdb.pipeline: processed 2000 / 7980 entries
+2026-11-02 22:32:41,313 INFO linkerdb.pipeline: processed 2200 / 7980 entries
+2026-11-02 22:32:47,353 INFO linkerdb.pipeline: processed 2400 / 7980 entries
+2026-11-02 22:32:53,189 INFO linkerdb.pipeline: processed 2600 / 7980 entries
+2026-11-02 22:32:57,242 INFO linkerdb.pipeline: processed 2800 / 7980 entries
+2026-11-02 22:33:01,933 INFO linkerdb.pipeline: processed 3000 / 7980 entries
+2026-11-02 22:33:05,579 INFO linkerdb.pipeline: processed 3200 / 7980 entries
+2026-11-02 22:33:09,537 INFO linkerdb.pipeline: processed 3400 / 7980 entries
+2026-11-02 22:33:15,498 INFO linkerdb.pipeline: processed 3600 / 7980 entries
+2026-11-02 22:33:21,212 INFO linkerdb.pipeline: processed 3800 / 7980 entries
+2026-11-02 22:33:27,897 INFO linkerdb.pipeline: processed 4000 / 7980 entries
+2026-11-02 22:33:35,824 INFO linkerdb.pipeline: processed 4200 / 7980 entries
+2026-11-02 22:33:42,699 INFO linkerdb.pipeline: processed 4400 / 7980 entries
+2026-11-02 22:33:50,000 INFO linkerdb.pipeline: processed 4600 / 7980 entries
+2026-11-02 22:33:56,750 INFO linkerdb.pipeline: processed 4800 / 7980 entries
+2026-11-02 22:34:03,819 INFO linkerdb.pipeline: processed 5000 / 7980 entries
+2026-11-02 22:34:09,908 INFO linkerdb.pipeline: processed 5200 / 7980 entries
+2026-11-02 22:34:16,572 INFO linkerdb.pipeline: processed 5400 / 7980 entries
+2026-11-02 22:34:24,569 INFO linkerdb.pipeline: processed 5600 / 7980 entries
+2026-11-02 22:34:33,401 INFO linkerdb.pipeline: processed 5800 / 7980 entries
+2026-11-02 22:34:41,204 INFO linkerdb.pipeline: processed 6000 / 7980 entries
+2026-11-02 22:34:49,245 INFO linkerdb.pipeline: processed 6200 / 7980 entries
+2026-11-02 22:34:56,870 INFO linkerdb.pipeline: processed 6400 / 7980 entries
+2026-11-02 22:35:06,521 INFO linkerdb.pipeline: processed 6600 / 7980 entries
+2026-11-02 22:35:14,640 INFO linkerdb.pipeline: processed 6800 / 7980 entries
+2026-11-02 22:35:20,989 INFO linkerdb.pipeline: processed 7000 / 7980 entries
+2026-11-02 22:35:27,168 INFO linkerdb.pipeline: processed 7200 / 7980 entries
+2026-11-02 22:35:35,204 INFO linkerdb.pipeline: processed 7400 / 7980 entries
+2026-11-02 22:35:42,111 INFO linkerdb.pipeline: processed 7600 / 7980 entries
+2026-11-02 22:35:49,960 INFO linkerdb.pipeline: processed 7800 / 7980 entries
+2026-11-02 22:35:56,285 INFO linkerdb.pipeline: processed 7980 entries in 248.5s
+2026-11-02 22:35:57,505 INFO linkerdb: attempt 2: 45 clusters
+2026-11-02 22:35:57,550 INFO linkerdb.pipeline: full: 45 entries total, 45 to process
+2026-11-02 22:35:57,561 INFO linkerdb.pipeline: downloaded/cached 45 entries in 0.0s
+2026-11-02 22:36:00,211 INFO linkerdb.pipeline: processed 45 entries in 2.7s
+2026-11-02 22:36:00,266 INFO linkerdb: attempt 3: 20 clusters
+2026-11-02 22:36:00,269 INFO linkerdb.pipeline: full: 20 entries total, 20 to process
+2026-11-02 22:36:00,272 INFO linkerdb.pipeline: downloaded/cached 20 entries in 0.0s
+2026-11-02 22:36:00,676 INFO linkerdb.pipeline: processed 20 entries in 0.4s
+2026-11-02 22:36:30,654 INFO linkerdb.selection: linker dedup: 2000 / 15121 linkers, 6907 alignments, 7202 pre-filtered
+2026-11-02 22:37:49,094 INFO linkerdb.selection: linker dedup: 4000 / 15121 linkers, 25784 alignments, 26974 pre-filtered
+2026-11-02 22:40:25,896 INFO linkerdb.selection: linker dedup: 6000 / 15121 linkers, 61348 alignments, 61897 pre-filtered
+2026-11-02 22:42:43,659 INFO linkerdb.selection: linker dedup: 8000 / 15121 linkers, 92357 alignments, 89865 pre-filtered
+2026-11-02 22:46:43,807 INFO linkerdb.selection: linker dedup: 10000 / 15121 linkers, 145200 alignments, 137368 pre-filtered
+2026-11-02 22:52:46,602 INFO linkerdb.selection: linker dedup: 12000 / 15121 linkers, 224110 alignments, 210619 pre-filtered
+2026-11-02 23:01:10,273 INFO linkerdb.selection: linker dedup: 14000 / 15121 linkers, 318648 alignments, 295372 pre-filtered
+2026-11-02 23:06:29,903 INFO linkerdb.selection: linker dedup: 377767 chain alignments (0 reused from cache), 350175 chain pairs skipped by the k-mer pre-filter
+2026-11-02 23:06:29,903 INFO linkerdb.selection: linker dedup: 1199 dropped of 15121
+===== full dataset (<= 2.5 Å, 40% clusters) =====
+entries: 7841   chains: 7985
+chain status: ok=7985
+numbering check: agree=7942, resolved_cdf=43
+methods: X-RAY DIFFRACTION=7915, ELECTRON MICROSCOPY=69, X-RAY DIFFRACTION;SOLUTION SCATTERING=1
+DSSP vs mmCIF SS annotation (3-state): median 0.926, min 0.394 over 7981 chains
+junctions/linkers: 13922   qc_pass: 13922
+qc flags: cath_unclassified=3741, domain_length_mismatch=1987, missing_residues=587, capped_n=475, capped_c=466, minor_segment_dropped=412, nonstandard_residue=364, numbering_resolved=72, chain_break=1
+junction type: sequential=6194, insertion=5838, interleaved=1890
+junction SS: coil=12315, helix_spanning=740, strand_spanning=739, sse_abutting=128
+gap length (CATH, qc_pass): min 0 | q25 0 | median 0 | q75 0 | q95 7 | max 30 | mean 0.9;  zero-length 89.3%
+structural linker length (qc_pass): min 0 | q25 3 | median 6 | q75 11 | q95 21 | max 46 | mean 7.8;  zero-length 11.5%
+  non-empty structural linkers: 12315; with missing residues 4.8%; fully disordered 0.0%; capped 7.4%
+  with chain break 0.0%; with non-standard residue 3.0% ([('MSE', 336), ('MLY', 14), ('LLP', 4), ('CSO', 2), ('CME', 2)])
+  linker composition enrichment vs whole chains: P:2.05 G:1.21 N:1.20 D:1.20 S:1.15 T:1.08 C:1.01 K:0.98 Q:0.95 R:0.92 E:0.92 F:0.91 Y:0.91 W:0.88 H:0.86 A:0.83 M:0.80 L:0.79 V:0.72 I:0.70
+top CATH pairs: nan->nan (2142); 3.40.190.10->3.40.190.10 (343); 3.40.50.2300->3.40.50.2300 (336); 2.60.40.10->2.60.40.10 (136); 3.40.640.10->3.90.1150.10 (127)
+clusters: 8125  representatives: 7985  dedup dropped: 1199  final linkers: 13922
+wrote chains: results/full/chains.parquet
+wrote linkers_all: results/full/linkers_all.parquet
+wrote linkers: results/full/linkers.parquet
