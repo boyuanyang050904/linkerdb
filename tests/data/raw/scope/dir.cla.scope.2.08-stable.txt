@@ -1,0 +1,12 @@
+# dir.cla.scope.txt
+# SCOPe release 2.08 (2021-07-29)  [File format version 1.02]
+# http://scop.berkeley.edu/
+# Copyright (c) 1994-2021 the SCOP and SCOPe authors; see http://scop.berkeley.edu/about
+d6r61a_	6r61	A:	b.50.1.0	416505	cl=48724,cf=50629,sf=50630,fa=191552,dm=190954,sp=402586,px=416505
+d1cnsa_	1cns	A:	d.2.1.1	36241	cl=53931,cf=53954,sf=53955,fa=53956,dm=53957,sp=53958,px=36241
+d1cnsb_	1cns	B:	d.2.1.1	36242	cl=53931,cf=53954,sf=53955,fa=53956,dm=53957,sp=53958,px=36242
+d2rh1a2	2rh1	A:1002-1161	d.2.1.3	304459	cl=53931,cf=53954,sf=53955,fa=53981,dm=53982,sp=53983,px=304459
+d2f7ze_	2f7z	E:	d.144.1.7	133113	cl=53931,cf=56111,sf=56112,fa=88854,dm=56116,sp=56118,px=133113
+d5njea1	5nje	A:371-498	d.223.1.2	352156	cl=53931,cf=82614,sf=82615,fa=102856,dm=102857,sp=102858,px=352156
+d5njea2	5nje	A:507-593	d.223.1.2	352157	cl=53931,cf=82614,sf=82615,fa=102856,dm=102857,sp=102858,px=352157
+d2rh1a1	2rh1	A:29-230,A:263-342	f.13.1.3	304458	cl=56835,cf=81322,sf=81321,fa=310610,dm=310689,sp=310906,px=304458

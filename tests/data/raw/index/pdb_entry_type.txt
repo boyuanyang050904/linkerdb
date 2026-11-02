@@ -1,0 +1,7 @@
+1cns	prot	diffraction
+2dch	prot	diffraction
+2f7z	prot	diffraction
+2j4n	prot	NMR
+2rh1	prot	diffraction
+5nje	prot	diffraction
+6r61	prot	diffraction

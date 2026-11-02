@@ -1,0 +1,30 @@
+#---------------------------------------------------------------------
+# FILE NAME:    CathDomainList.v4.4.0
+# FILE DATE:    16.12.2024
+#
+# CATH VERSION: v4.4.0
+# VERSION DATE: 16.12.2024
+#
+# FILE FORMAT:  Cath List File (CLF) Format 2.0
+#
+# FILE DESCRIPTION:
+# Contains all classified protein domains in CATH
+# for class 1 (mainly alpha), class 2 (mainly beta),
+# class 3 (alpha and beta) and class 4 (few secondary structures).
+#
+# See 'README.file_formats' for file format information
+#---------------------------------------------------------------------
+2f7zE01     1    10   510    10     9     1     1     5    50   209 3.000
+1cnsA01     1    10   530    10    23     1     6     2     1   185 1.910
+1cnsB01     1    10   530    10    23     1     6     2     2   185 1.910
+2rh1A02     1    10   530    40     2     1     2     5     8   160 2.400
+2rh1A01     1    20  1070    10    20     2     1     1     1   282 2.400
+2dchX02     3    10    28    10     7     1     1     1     1   111 2.060
+2dchX01     3    10    28    10    15     1     1     1     1    93 2.060
+1cnsA02     3    30    20    10     1     1     5     1     2    58 1.910
+1cnsB02     3    30    20    10     1     1     5     1     3    58 1.910
+2f7zE02     3    30   200    20   112     1     1     1    58   125 3.000
+5njeA02     3    30  1120    30     1     1     1     1    38    89 1.980
+5njeA01     3    30  1120    30     2     1     1     1    15   126 1.980
+2j4nA02     3    90  1220    10     1     1     1     1     2    42 999.000
+2j4nA01     3    90  1220    10     2     1     1     1     2    36 999.000

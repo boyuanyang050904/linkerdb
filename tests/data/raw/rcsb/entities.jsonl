@@ -1,0 +1,5 @@
+{"pdb_id": "1cns", "methods": ["X-RAY DIFFRACTION"], "resolution": 1.91, "n_models": 1, "entities": [{"entity": "1CNS_1", "type": "polypeptide(L)", "auth_asym_ids": ["A", "B"], "uniprot_ids": ["P23951"]}]}
+{"pdb_id": "2dch", "methods": ["X-RAY DIFFRACTION"], "resolution": 2.06, "n_models": 1, "entities": [{"entity": "2DCH_1", "type": "polypeptide(L)", "auth_asym_ids": ["X"], "uniprot_ids": ["Q8J309"]}]}
+{"pdb_id": "2rh1", "methods": ["X-RAY DIFFRACTION"], "resolution": 2.4, "n_models": 1, "entities": [{"entity": "2RH1_1", "type": "polypeptide(L)", "auth_asym_ids": ["A"], "uniprot_ids": ["P00720", "P07550"]}]}
+{"pdb_id": "5nje", "methods": ["X-RAY DIFFRACTION"], "resolution": 1.978, "n_models": 1, "entities": [{"entity": "5NJE_1", "type": "polypeptide(L)", "auth_asym_ids": ["A"], "uniprot_ids": ["P53350"]}]}
+{"pdb_id": "6r61", "methods": ["X-RAY DIFFRACTION"], "resolution": 1.81, "n_models": 1, "entities": [{"entity": "6R61_1", "type": "polypeptide(L)", "auth_asym_ids": ["A"], "uniprot_ids": ["J9VS02"]}]}

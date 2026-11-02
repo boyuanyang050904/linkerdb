@@ -1,0 +1,17 @@
+#---------------------------------------------------------------------
+# FILE NAME:    CathUnclassifiedList.v4.4.0
+# FILE DATE:    16.12.2024
+#
+# CATH VERSION: v4.4.0
+# VERSION DATE: 16.12.2024
+#
+# FILE FORMAT:  Cath List File (CLF) Format 2.0
+#
+# FILE DESCRIPTION:
+# Contains all unclassified protein chains and domains that are
+# still being processed.
+#
+# See 'README.file_formats' for file format information
+#---------------------------------------------------------------------
+6r61A01     6     1     1     1     1     1     1     1 66189   180 1.810
+6r61A02     6     1     1     1     1     1     1     1 66190   169 1.810

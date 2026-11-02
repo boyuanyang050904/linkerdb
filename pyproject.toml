@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "linkerdb"
+version = "0.1.0"
+description = "Systematic extraction of inter-domain linkers from natural multi-domain proteins in the PDB (data acquisition layer)"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "gemmi>=0.6",
+    "numpy>=1.24",
+    "pandas>=2.0",
+    "pyarrow>=12",
+    "requests>=2.28",
+    "biopython>=1.81",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=7", "pytest-cov>=4"]
+
+[project.scripts]
+linkerdb = "linkerdb.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+markers = ["network: tests that need internet access (deselected by default with -m 'not network')"]
+
+[tool.coverage.run]
+source = ["linkerdb"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
