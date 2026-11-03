@@ -1,11 +1,13 @@
-# linkerdb 数据获取层设计
+# linkerdb 设计
 
-> 范围：本文件只覆盖**数据获取层**：从 PDB 下载结构、解析结构域边界、提取 domain linker、
-> 构建非冗余数据集并输出 parquet。下游的特征计算和建模不在本会话范围内。
+> 范围：从 PDB 下载结构、解析结构域边界、提取 domain linker，并构建一个面向**融合蛋白 / 生物药设计**的
+> linker 数据库（第 13 节）。下游的建模不在范围内。
 >
-> 版本记录：v0 是初稿（见 git 历史）；v1 是自审后的修订版，第 10 节列出自审发现的问题和对应修正；
-> v2 根据 50 结构小样本的人工检查修改了若干规则，正文已更新为最终规则，修改经过记录在第 11 节；
-> 第 12 节是已知局限。
+> 版本记录：v0 初稿（git 历史）；v1 自审修订（第 10 节）；v2 按 50 结构小样本人工检查改规则（第 11 节），
+> 并跑通 ≤ 2.5 Å、40% 去冗余的完整提取（第 11.5 节）；**v3 把产物从"单一非冗余集"改为"两层数据库"（第 13 节）**,
+> 目标用户是做融合蛋白 / 双抗 / Fc 融合的工程人员。第 12 节是已知局限（已随 v3 更新）。
+>
+> §1–§7 是提取规则，§8–§11 是第一阶段的非冗余数据集构建和验证，§12 是已知局限，§13 是 v3 的数据库层。
 
 ---
 
@@ -414,3 +416,83 @@ linker 组成相对整链：Pro ×1.87、Gly ×1.34、Ser ×1.11 富集；Trp ×
     k-mer 预筛按 25,000 对标定，不能保证零漏检；代表链按分辨率优先选，不一定是最完整的构建体。
 13. **CATH 快照与当前 PDB 文件之间的版本差异**：§7 第 4 条的端点裁决只能处理"整体偏移"一类的变化；
     两种编号都自洽但都与当前模型不符的情况（例如重新精修后改了建模范围）无法发现，只能依赖 domain 长度提示和几何校验。
+
+---
+
+## 13. 数据库层（v3，面向融合蛋白 / 生物药设计）
+
+### 13.1 为什么从"非冗余集"改成"数据库"
+
+第一阶段（§8–§11）产出的是**非冗余集**：每个 40% 聚类只留一条代表链。这适合做统计或当训练集,
+但对设计不够用——判断一个 linker 是**刚性还是柔性**,必须看它在**多个结构**里的几何变化,而非冗余集恰好把这些副本删掉了。
+所以 v3 改成两层:
+
+* **实例层 `linkers_instances.parquet`**:每条链上的每个结构域交界(§1–§7 的规则不变),外加每个实例的
+  结构域间几何(`dom_dist` = 两侧结构域 CA 质心距离,`elbow_angle` = 以 linker 处为顶点的夹角)。
+* **典型层 `linkers_canonical.parquet`**:把实例按 UniProt 区间归并,每个"典型 linker"一行,汇总刚性、几何、可开发性。
+* **非冗余不再靠删除**,而是作为实例上的 `cluster40` 标记保留。要非冗余子集就按标记筛,数据本身不丢。
+
+处理范围也从"每簇一条代表"扩大到**所有多结构域链**(每个 entry 的每个实体取一条,避免把晶体学副本当成独立证据)。
+
+### 13.2 归并:实例 → 典型 linker
+
+按 UniProt accession 分组,组内把 UniProt 区间**重叠**的实例并成一个连通分量(union-find),每个分量是一个典型 linker,
+ID 形如 `P12345:185-198`(区间取成员中位数)。不同结构域交界落在不同 UniProt 区段,不会重叠,自然分开。
+没有 UniProt 映射的实例无法跨结构归并,单独成为 `grouped = False` 的条目(n_structures = 1)。
+
+### 13.3 刚性判定
+
+关键发现(在 120 个冗余簇的子样本上验证时暴露):**不能用 end-to-end 距离判断刚性**。同一个交界在不同结构里,
+CATH/DSSP 画的 linker 边界会差几个残基,导致 end-to-end 在 7 Å 和 25 Å 之间跳(例:AIF `O95831` 的一个交界,
+`ss_length` 在 3 和 9 之间变),这是**边界噪声**,不是结构域运动。
+
+改用**结构域质心距离 `dom_dist` 的跨结构变异系数(CV)**,它只由两侧完整结构域决定,与 linker 边界无关,
+直接反映"两个结构域是否保持固定距离":
+
+* `frac_helix ≥ 0.5` → `rigid_helical`(连续螺旋型 linker);
+* 否则,`n_structures ≥ 3` 且有 ≥ 3 个 `dom_dist` 测量:
+  `dom_dist_cv ≤ 0.05` 且 `elbow_angle_std ≤ 15°` → `rigid`;
+  `dom_dist_cv ≥ 0.15` 或 `elbow_angle_std ≥ 40°` → `flexible`;
+  其间 → `intermediate`;置信度 `high`;
+* 否则(单 / 少结构):若多数结构 linker 无序 → `flexible_disordered`;再否则按共识二级结构猜(`rigid_helical` /
+  `strand_spanning` → 偏刚,`coil` → 偏柔),置信度 `low`。
+
+子样本结果合理:判为 `flexible` 的高置信条目是已知的多结构域运动体(拓扑异构酶 V、RIG-I 样解旋酶 LGP2、
+GalNAc 转移酶的催化–凝集素铰链);AIF 那个交界在修正后正确判为 `rigid`(`dom_dist_cv` 0.02)。
+阈值是启发式的,**下一步要用人工金标准集重新标定**(见第 14 节 roadmap)。局限:`dom_dist` 看不出"质心距离不变、
+纯粹绕铰链转动"的情形,也依赖同一蛋白有多个不同构象的结构才能给出 `high` 置信。
+
+### 13.4 可开发性标记(`developability.py`)
+
+对 linker 序列扫描已知的化学 / 生物液相不稳定位点,作为**提示**而非预测(是否真成问题取决于溶剂暴露和表达体系,
+但 linker 恰好是最暴露、最可能反应的地方):N-糖基化序列子 `N-X-[S/T]`、脱酰胺 `N-G`(及较弱的 `N-[S/T/H/A]`)、
+天冬氨酸异构化 `D-G`、氧化敏感的 Met/Trp、半胱氨酸(二硫键状态未知)、furin 样切位点 `R-X-[R/K]-R`、赖氨酸数。
+每个典型 linker 带这些计数、`liability_tags` 和一个只用于排序的 `liability_score`。
+
+### 13.5 检索(`linkerdb query` / `retrieve.py`)
+
+按设计者的真实问法检索典型 linker:目标结构域间距离(`--distance`,匹配 `dom_dist_median`)、刚性(`--rigidity`)、
+是否人源(`--human`)、长度范围、最少结构数(`--min-structures`,用来只取高置信条目)、排除糖基化 / 半胱氨酸、
+可开发性上限。输出一个排好序的候选短名单,附刚性、`dom_dist_cv`、证据结构数和液相标记。
+
+**边界**:这个库能缩小候选、给出带实验构象的起点,**不能预测**某个 linker 在你的具体融合蛋白里好不好用——那仍要靠
+结构建模加实验。库让第一轮候选更聪明,不替代验证。
+
+### 13.6 输出文件
+
+| 文件 | 内容 |
+|---|---|
+| `linkers_instances.parquet` | 每条链每个交界一行(§9 的列 + `dom_dist`、`elbow_angle`、`cluster40`、`cath_chain`) |
+| `linkers_canonical.parquet` | 每个典型 linker 一行:`canonical_id`、`uniprot`、`unp_lo/hi`、`grouped`、`n_structures`、`n_entries`、`rep_*`、`best_resolution`、`sequence`、`length_*`、`rigidity`、`rigidity_confidence`、`dom_dist_median`、`dom_dist_cv`、`elbow_angle_*`、`end_to_end_*`、`frac_disordered`、`frac_helix`、`junction_ss/type`、`cath_n/c`、`taxid`、`is_human`、可开发性计数 + `liability_tags` + `liability_score`、`n_clusters40` |
+| `chains.parquet` | 每条处理过的链的状态(同 §9) |
+| `candidates.parquet` | 候选链及其 40% 簇 |
+| `run_info.json` | 版本、规则、计数 |
+
+### 13.7 没做 / 下一步(roadmap)
+
+1. **人工金标准集**(100–200 个文献里定义清楚的 linker)重新标定延伸上限和刚性阈值,并决定螺旋型 linker 的边界。
+2. **和人工 linker 对照**:在相同距离需求下,天然 linker 与 (G4S)n、EAAAK 的长度 / 刚性 / 液相标记对比,作为库的价值证明。
+3. **扩覆盖面**:加 ECOD 作第二个结构域来源(补 CATH 未覆盖的 22% 和新结构),抗体 / TCR 的 elbow 单列一类,
+   AlphaFold 结构作单独一层(带 pLDDT)。
+4. **更强的刚性度量**:做结构叠合,捕捉"质心距离不变的纯转动",区分真·刚性和采样不足。
+5. **交付**:版本化 parquet + DuckDB/SQLite + 文档;定期增量收录新 PDB 条目;发布前核对各来源许可(PDB CC0,UniProt/CATH 需署名)。
