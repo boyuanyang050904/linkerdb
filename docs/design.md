@@ -430,6 +430,9 @@ linker 组成相对整链：Pro ×1.87、Gly ×1.34、Ser ×1.11 富集；Trp ×
 * **实例层 `linkers_instances.parquet`**:每条链上的每个结构域交界(§1–§7 的规则不变),外加每个实例的
   结构域间几何(`dom_dist` = 两侧结构域 CA 质心距离,`elbow_angle` = 以 linker 处为顶点的夹角)。
 * **典型层 `linkers_canonical.parquet`**:把实例按 UniProt 区间归并,每个"典型 linker"一行,汇总刚性、几何、可开发性。
+  每行有 `linker_class`:`coil`(有独立 linker 区段)或 `helix_spanning` / `strand_spanning` / `sse_abutting`
+  (零长度——两个结构域由一段连续二级结构直接相连,没有独立 linker)。**零长度交界不丢弃**:连续螺旋型连接正是
+  刚性 linker 设计里要的(EAAAK 的天然对应),这类条目 `sequence` 存的是跨交界的 flanking SSE 窗口(`coil_sequence` 为空)。
 * **非冗余不再靠删除**,而是作为实例上的 `cluster40` 标记保留。要非冗余子集就按标记筛,数据本身不丢。
 
 处理范围也从"每簇一条代表"扩大到**所有多结构域链**(每个 entry 的每个实体取一条,避免把晶体学副本当成独立证据)。
@@ -483,7 +486,7 @@ GalNAc 转移酶的催化–凝集素铰链);AIF 那个交界在修正后正确�
 | 文件 | 内容 |
 |---|---|
 | `linkers_instances.parquet` | 每条链每个交界一行(§9 的列 + `dom_dist`、`elbow_angle`、`cluster40`、`cath_chain`) |
-| `linkers_canonical.parquet` | 每个典型 linker 一行:`canonical_id`、`uniprot`、`unp_lo/hi`、`grouped`、`n_structures`、`n_entries`、`rep_*`、`best_resolution`、`sequence`、`length_*`、`rigidity`、`rigidity_confidence`、`dom_dist_median`、`dom_dist_cv`、`elbow_angle_*`、`end_to_end_*`、`frac_disordered`、`frac_helix`、`junction_ss/type`、`cath_n/c`、`taxid`、`is_human`、可开发性计数 + `liability_tags` + `liability_score`、`n_clusters40` |
+| `linkers_canonical.parquet` | 每个典型 linker 一行:`canonical_id`、`uniprot`、`unp_lo/hi`、`grouped`、`linker_class`、`n_structures`、`n_entries`、`rep_*`、`best_resolution`、`sequence`、`coil_sequence`、`length_*`、`rigidity`、`rigidity_confidence`、`dom_dist_median`、`dom_dist_cv`、`elbow_angle_*`、`end_to_end_*`、`frac_disordered`、`frac_helix`、`junction_ss/type`、`cath_n/c`、`taxid`、`is_human`、可开发性计数 + `liability_tags` + `liability_score`、`n_clusters40` |
 | `chains.parquet` | 每条处理过的链的状态(同 §9) |
 | `candidates.parquet` | 候选链及其 40% 簇 |
 | `run_info.json` | 版本、规则、计数 |

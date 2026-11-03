@@ -61,7 +61,12 @@ Other files: `chains.parquet` (per-chain status), `candidates.parquet` (candidat
 
 ## Status
 
-`results/db/` is the database (build in progress / latest run — see its `run_info.json`).
+`results/db/` is the database (CATH v4.4.0, ≤ 2.5 Å, built 2026-11-03): 114,433 junctions →
+106,869 QC-passed instances → **27,266 canonical linkers** (13,419 UniProt accessions, 3,280 human);
+7,914 (29 %) have ≥ 3 structures for a high-confidence rigidity call. By class: coil 24,161,
+helix_spanning 1,532, strand_spanning 1,337, sse_abutting 236. `python scripts/check_database.py results/db`
+re-runs the invariant checks.
+
 `results/full/` and `results/sample50/` are the first-stage non-redundant set and the validation sample
 (`docs/design.md` §8–§11). Roadmap (golden-set calibration, artificial-linker comparison, ECOD/antibody
 coverage, AlphaFold layer) is `docs/design.md` §13.7.
