@@ -22,7 +22,12 @@ RIGID = {"rigid", "rigid_helical", "strand_spanning"}
 FLEX = {"flexible", "flexible_disordered"}
 db = Path(sys.argv[1] if len(sys.argv) > 1 else "results/db")
 C = pd.read_parquet(db / "linkers_canonical.parquet")
-hi = C[C["rigidity_confidence"] == "high"]   # rigidity is only trustworthy at high confidence
+RIG_COL = "rigidity_final" if "rigidity_final" in C.columns else "rigidity"
+# trust a rigidity call when it is superposition-based or proxy-high-confidence
+if "rigidity_source" in C.columns:
+    hi = C[(C["rigidity_source"] == "superposition") | (C["rigidity_confidence"] == "high")]
+else:
+    hi = C[C["rigidity_confidence"] == "high"]
 
 
 def composition(seqs):
@@ -44,8 +49,8 @@ def pool_row(name, sub):
     }
 
 
-R = hi[hi["rigidity"].isin(RIGID)]
-F = hi[hi["rigidity"].isin(FLEX)]
+R = hi[hi[RIG_COL].isin(RIGID)]
+F = hi[hi[RIG_COL].isin(FLEX)]
 pools = pd.DataFrame([pool_row("rigid", R), pool_row("flexible", F)])
 
 art = artificial_table()

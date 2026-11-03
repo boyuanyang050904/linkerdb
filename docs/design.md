@@ -491,7 +491,7 @@ CATH/DSSP 画的 linker 边界会差几个残基,导致 end-to-end 在 7 Å 和 
 | 文件 | 内容 |
 |---|---|
 | `linkers_instances.parquet` | 每条链每个交界一行(§9 的列 + `dom_dist`、`elbow_angle`、`cluster40`、`cath_chain`) |
-| `linkers_canonical.parquet` | 每个典型 linker 一行:`canonical_id`、`uniprot`、`unp_lo/hi`、`grouped`、`linker_class`、`n_structures`、`n_entries`、`rep_*`、`best_resolution`、`sequence`、`coil_sequence`、`length_*`、`rigidity`、`rigidity_confidence`、`dom_dist_median`、`dom_dist_cv`、`elbow_angle_median`、`elbow_angle_std`、`elbow_angle_range`、`end_to_end_*`、`frac_disordered`、`frac_helix`、`junction_ss/type`、`cath_n/c`、`taxid`、`is_human`、可开发性计数 + `liability_tags` + `liability_score`、`n_clusters40` |
+| `linkers_canonical.parquet` | 每个典型 linker 一行:`canonical_id`、`uniprot`、`unp_lo/hi`、`grouped`、`linker_class`、`n_structures`、`n_entries`、`rep_*`、`best_resolution`、`sequence`、`coil_sequence`、`length_*`、`rigidity`、`rigidity_confidence`、`dom_dist_median`、`dom_dist_cv`、`elbow_angle_median`、`elbow_angle_std`、`elbow_angle_range`、`end_to_end_*`、`superpose_c_rmsd`、`superpose_hinge`、`superpose_n_used`、`superpose_rigidity`、`rigidity_final`、`rigidity_source`、`frac_disordered`、`frac_helix`、`junction_ss/type`、`cath_n/c`、`taxid`、`is_human`、可开发性计数 + `liability_tags` + `liability_score`、`n_clusters40` |
 | `chains.parquet` | 每条处理过的链的状态(同 §9) |
 | `candidates.parquet` | 候选链及其 40% 簇 |
 | `run_info.json` | 版本、规则、计数 |
@@ -587,9 +587,19 @@ Cα → 把该变换作用到 C 侧结构域 → 量 C 侧 Cα 的 RMSD(`c_rmsd`
   是我金标准里"rigid"这个粗标签把 Ca 结合态当成了全部。说明金标准标签本身也需要分条件核定。
 * LGP2 `undetermined`:跨结构共享的核心残基不足 5 个,诚实地不给结论。
 
-### 15.3 现状与下一步
+### 15.3 已并入数据库
 
-`superpose.py` + `scripts/superpose_golden.py` 已实现并在金标准集上验证。它比代理更准,但**更重**(要重新读结构、重算结构域),
-所以目前是**分析 / 验证工具,没有并进默认 build**。下一步可选:对高置信(`n_structures ≥ 3`,约 7,914 条)的典型 linker
-批量算 `max_c_rmsd` / `max_hinge` 并写进 `linkers_canonical.parquet`,用叠合判定替换代理判定——代价是一次约 1.5 小时的重算
-(要重新读那些结构)。
+叠合已对全库跑完(`scripts/superpose_db.py`,约 38 分钟,每条链只读一次):对 `n_structures ≥ 3` 的 7,914 条典型 linker
+算了 `max_c_rmsd` / `max_hinge`,其中 **7,911 条**算出结果(3 条共享核心残基不足 5 个,`undetermined`)。
+`linkers_canonical.parquet` 新增列:`superpose_c_rmsd`、`superpose_hinge`、`superpose_n_used`、`superpose_rigidity`,
+以及 **`rigidity_final`**(能算叠合的用叠合,否则回退代理)和 `rigidity_source`(`superposition` / `proxy`)。
+`linkerdb query`、金标准打分、`check_database.py` 都改用 `rigidity_final`。
+
+结果:7,911 条用叠合判定、19,355 条回退代理;**3,523 条(约 13%)的最终标签与代理不同**。
+`rigidity_final` 分布:flexible 18,027、rigid 5,565、rigid_helical 1,184、intermediate 1,714、flexible_disordered 776
+(rigid 从代理的 7,714 降到 5,565——很多"刚性"其实是转动铰链或单构象采样,被叠合纠正)。
+金标准集改用 `rigidity_final` 后 **12/12 全部决出胜负、8 条正确**(代理是 10 决出、7 对、2 条不定);
+GalNAc-T2、PDI 由 intermediate 正确解析为 flexible,cadherin-3 翻成 flexible(§15.2 的 apo 柔性,属金标准标签过粗)。
+
+`rigidity_confidence`(代理用)对叠合判定不再适用;叠合判定本身即高置信(`n_structures ≥ 3` + 跨构象实测),
+由 `rigidity_source = superposition` 标识。单 / 少结构的 linker 仍只有代理判定,置信度低。

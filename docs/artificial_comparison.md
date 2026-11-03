@@ -26,30 +26,30 @@ only tunable is the number of turns.
 
 | pool | n | length_median | length_5_95 | coil | helix | strand | pct_human | pct_liability_free |
 |---|---|---|---|---|---|---|---|---|
-| rigid | 7147 | 6.0 | 0-21 | 6399 | 400 | 295 | 17.0 | 73.0 |
-| flexible | 298 | 8.0 | 0-27 | 293 | 0 | 5 | 22.0 | 71.0 |
+| rigid | 4528 | 7.0 | 0-22 | 4078 | 246 | 164 | 12.0 | 73.0 |
+| flexible | 1855 | 6.0 | 0-21 | 1694 | 72 | 86 | 26.0 | 74.0 |
 
 The headline: a fusion-protein designer who needs a **rigid** connector has, in
-practice, one synthetic option (EAAAK). linkerdb offers **7147** high-confidence
-rigid natural linkers — 6399 coil, 400 continuous-helix and 295 continuous-strand —
+practice, one synthetic option (EAAAK). linkerdb offers **4528** high-confidence
+rigid natural linkers — 4078 coil, 246 continuous-helix and 164 continuous-strand —
 each with an experimentally-observed structure, 73% of them liability-free and
-17% human-derived.
+12% human-derived.
 
 ### Rigid coil linkers by end-to-end span (pick a spacer length)
 
 | span_bin | n | median_len | pct_liability_free |
 |---|---|---|---|
-| <8 | 1480 | 3.0 | 87 |
-| 8-14 | 1850 | 6.0 | 76 |
-| 14-20 | 1340 | 9.25 | 67 |
-| 20-26 | 703 | 14.0 | 56 |
-| >26 | 715 | 19.0 | 56 |
+| <8 | 933 | 3.0 | 87 |
+| 8-14 | 1147 | 6.0 | 76 |
+| 14-20 | 832 | 10.0 | 68 |
+| 20-26 | 476 | 14.0 | 54 |
+| >26 | 485 | 19.0 | 56 |
 
 ## Composition
 
 `(G4S)n` is 80% Gly + 20% Ser; `(EAAAK)n` is 60% Ala + 20% Glu + 20% Lys. Natural
 flexible linkers are enriched in the same small/polar residues **but are far more
-diverse** — top residues (coil, flexible): P 9%, G 8%, A 8%, D 7%, L 7%, S 7%, K 7%, E 7%.
+diverse** — top residues (coil, flexible): P 9%, G 9%, L 7%, A 7%, S 7%, D 7%, E 7%, T 6%.
 Proline and the charged residues (Asp/Glu/Lys) are prominent, which `(G4S)n` lacks;
 these are exactly the handles one reaches for to add rigidity, solubility or
 protease resistance without leaving natural sequence space.

@@ -1,6 +1,6 @@
 pool,n,length_median,length_5_95,coil,helix,strand,pct_human,pct_liability_free,kind,sequence,length,class,axial_reach_A,liability_score,liability_tags
-rigid,7147.0,6.0,0-21,6399.0,400.0,295.0,17.0,73.0,natural_pool,,,,,,
-flexible,298.0,8.0,0-27,293.0,0.0,5.0,22.0,71.0,natural_pool,,,,,,
+rigid,4528.0,7.0,0-22,4078.0,246.0,164.0,12.0,73.0,natural_pool,,,,,,
+flexible,1855.0,6.0,0-21,1694.0,72.0,86.0,26.0,74.0,natural_pool,,,,,,
 (G4S)1,,,,,,,,,synthetic,GGGGS,5.0,flexible,,0.0,[]
 (G4S)2,,,,,,,,,synthetic,GGGGSGGGGS,10.0,flexible,,0.0,[]
 (G4S)3,,,,,,,,,synthetic,GGGGSGGGGSGGGGS,15.0,flexible,,0.0,[]

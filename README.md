@@ -50,9 +50,11 @@ linkerdb query --canonical results/db/linkers_canonical.parquet \
   `rigid_helical` / …) and its confidence, geometry spread, developability liabilities, species, and how
   many structures back it. This is what `query` reads.
 
-Rigidity is judged from how much the **domain-centroid distance** varies across structures (boundary-
-independent), so it needs several structures of the same protein; `rigidity_confidence` and
-`n_structures` say how much to trust it. Non-redundancy is a column (`cluster40`), not a deletion.
+Rigidity lives in **`rigidity_final`**: for linkers with ≥3 structures it is computed by superposing the
+N-domain across those structures and measuring how far the C-domain moves (rotation-aware, `rigidity_source
+= superposition`, 7,911 linkers); otherwise it falls back to a cheap domain-distance/angle proxy
+(`rigidity_source = proxy`). `n_structures` says how much to trust it. Non-redundancy is a column
+(`cluster40`), not a deletion.
 
 **Scope:** this narrows and ranks candidates and gives experimentally-observed starting conformations;
 it does not predict that a linker will work in a particular construct — model and test the shortlist.
@@ -69,9 +71,9 @@ helix_spanning 1,532, strand_spanning 1,337, sse_abutting 236. `python scripts/c
 re-runs the invariant checks.
 
 Two analyses live under `scripts/` and `docs/`: `compare_artificial.py` →
-`docs/artificial_comparison.md` (natural vs (G4S)n/EAAAK), and `superpose_golden.py` (a
-rotation-aware, superposition-based rigidity measure validated against the golden set,
-`docs/design.md` §15 — cleaner than the built-in proxy, not yet wired into `build`).
+`docs/artificial_comparison.md` (natural vs (G4S)n/EAAAK), and the superposition rigidity metric
+(`superpose.py`), validated on the golden set by `superpose_golden.py` and folded into the database
+DB-wide by `superpose_db.py` (`rigidity_final`; `docs/design.md` §15).
 
 `results/sample50/` is the validation sample for the extraction rules (`docs/design.md` §8–§11). The
 first-stage non-redundant build and its linker-level dedup were retired in v3 (the database groups by
