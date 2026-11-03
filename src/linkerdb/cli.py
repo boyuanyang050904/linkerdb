@@ -8,6 +8,7 @@
     linkerdb sample  --out results/sample50   # validation sample for the extraction rules
     linkerdb score-golden --canonical results/db/linkers_canonical.parquet
     linkerdb score-swaps                       # retrospective check vs linker-swap experiments
+    linkerdb design  --distance 25 --human --max-liability 1   # shortlist rigid natural linkers
 """
 
 from __future__ import annotations
@@ -35,6 +36,7 @@ from .retrieve import format_hits, query_canonical
 from .selection import attach_clusters, candidate_chains, chains_of_entries, sample_entries
 from .sifts import fetch_sifts, load_sifts
 from .sources import fetch_entity_info, fetch_indices, parse_clusters, parse_entry_type, parse_resolu
+from .design import FOLD_PROTOCOL, TRUST_RANK, format_proposals, propose
 from .stats import show_linker, summarize, summarize_canonical
 from .structure import load_structure
 from .swaps import load_swaps, score_swaps, summary as swap_summary
@@ -192,6 +194,22 @@ def cmd_score_golden(args) -> int:
     return 0
 
 
+def cmd_design(args) -> int:
+    if args.protocol:
+        print(FOLD_PROTOCOL)
+        return 0
+    canonical = pd.read_parquet(args.canonical)
+    df = propose(canonical, distance=args.distance, distance_tol=args.distance_tol,
+                 min_length=args.min_length, max_length=args.max_length, human_only=args.human,
+                 no_glyc=args.no_glyc, no_cys=args.no_cys, max_liability=args.max_liability,
+                 min_trust=args.min_trust, diversify_top=args.diversify, top=args.top)
+    print(format_proposals(df))
+    if args.out and not df.empty:
+        df.assign(evidence=df["evidence"].apply(lambda e: "; ".join(e))).to_csv(args.out, index=False)
+        print(f"\nwrote {args.out}")
+    return 0
+
+
 def cmd_score_swaps(args) -> int:
     scored = score_swaps(load_swaps() if not args.swaps else load_swaps(args.swaps))
     print(swap_summary(scored))
@@ -298,6 +316,26 @@ def main(argv=None) -> int:
     s.add_argument("--golden", help="golden-set CSV (default: bundled golden/golden_set.csv)")
     s.add_argument("--out", help="write the per-entry scoring table to this CSV")
     s.set_defaults(func=cmd_score_golden)
+
+    s = sub.add_parser("design",
+                       help="shortlist rigid natural linkers for a design spec (retrieval + evidence tiers "
+                            "+ conservative variants); --protocol prints the external-fold verification steps")
+    s.add_argument("--canonical", default="results/db/linkers_canonical.parquet")
+    s.add_argument("--distance", type=float, help="target inter-domain COM distance (Å)")
+    s.add_argument("--distance-tol", type=float, default=5.0)
+    s.add_argument("--min-length", type=int)
+    s.add_argument("--max-length", type=int)
+    s.add_argument("--human", action="store_true")
+    s.add_argument("--no-glyc", action="store_true")
+    s.add_argument("--no-cys", action="store_true")
+    s.add_argument("--max-liability", type=int)
+    s.add_argument("--min-trust", choices=list(TRUST_RANK), default="evidence_weak",
+                   help="drop candidates below this evidence tier (default: exclude proxy-only)")
+    s.add_argument("--diversify", type=int, default=0, help="emit conservative variants for the top N splice-in hits")
+    s.add_argument("--top", type=int, default=20)
+    s.add_argument("--out", help="write the shortlist to this CSV")
+    s.add_argument("--protocol", action="store_true", help="print the external structure-verification protocol and exit")
+    s.set_defaults(func=cmd_design)
 
     s = sub.add_parser("score-swaps",
                        help="check the library's reach/rigidity models against published linker-swap experiments")

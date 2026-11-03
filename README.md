@@ -20,6 +20,7 @@ linkerdb build --out results/db        # all multi-domain chains <= 2.5 Å -> in
 linkerdb query --distance 25 --rigidity rigid --human --no-glyc --min-structures 3
 linkerdb score-golden                  # check rigidity calls against the seed golden set
 linkerdb score-swaps                   # retrospective check of the reach/rigidity models vs linker-swap experiments
+linkerdb design --distance 25 --human --max-liability 1   # shortlist rigid natural linkers for a design spec
 linkerdb show 5t6i_A_1 13pk_A_1        # readable view of one junction (sequence / CATH / DSSP tracks)
 linkerdb sample --out results/sample50 # 50-entry validation sample (for checking the extraction rules)
 ```
@@ -82,6 +83,15 @@ reach/rigidity *models* vs published linker-swap experiments — scFv length→o
 vs GS FRET sensors, §16). Both ship seed sets (`golden/`); the swap corpus carries verified citations
 (Arai 2001, Holliger 1993, Kortt 1997, Bai & Shen 2006, Amet 2009) with a `verified` column, but is a
 small textbook-granularity seed, not a figure-level benchmark — see the honesty notes in §14 / §16.
+
+`linkerdb design` turns the database into a **rigid-linker design system** (`design.py`, §17): conditional
+retrieval + evidence-tiered calibration + an external structure-verification protocol, with linkerdb as
+spec, rigid-linker source and benchmark. It deliberately does *not* train a sequence→rigidity model — a
+grouped-CV experiment (`scripts/discriminator_experiment.py`) shows sequence does not predict the
+superposition rigidity label (AUC ≈ 0.52) and that the label itself is confounded by conformational
+sampling (rigid-fraction 0.77 at n=3 → 0.47 at n>20). So rigidity comes from the designed fold (a
+continuous helix is a rigid rod) and the DB's cross-conformer evidence, and the per-construct call is
+deferred to external folding (AlphaFold-multimer / RFdiffusion) scored with the DB's own geometry.
 
 `results/sample50/` is the validation sample for the extraction rules (`docs/design.md` §8–§11). The
 first-stage non-redundant build and its linker-level dedup were retired in v3 (the database groups by
