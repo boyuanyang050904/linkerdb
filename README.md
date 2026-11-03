@@ -68,6 +68,11 @@ Other files: `chains.parquet` (per-chain status), `candidates.parquet` (candidat
 helix_spanning 1,532, strand_spanning 1,337, sse_abutting 236. `python scripts/check_database.py results/db`
 re-runs the invariant checks.
 
+Two analyses live under `scripts/` and `docs/`: `compare_artificial.py` →
+`docs/artificial_comparison.md` (natural vs (G4S)n/EAAAK), and `superpose_golden.py` (a
+rotation-aware, superposition-based rigidity measure validated against the golden set,
+`docs/design.md` §15 — cleaner than the built-in proxy, not yet wired into `build`).
+
 `results/sample50/` is the validation sample for the extraction rules (`docs/design.md` §8–§11). The
 first-stage non-redundant build and its linker-level dedup were retired in v3 (the database groups by
 UniProt region instead of deleting redundant linkers). Roadmap (golden-set calibration, artificial-linker

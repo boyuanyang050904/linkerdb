@@ -1,0 +1,13 @@
+protein,expected,proxy,proxy_label,superpose,max_c_rmsd,max_hinge,n_used
+Calmodulin,flexible,flexible,flexible,flexible,46.7,178.0,38
+Maltose-binding protein,flexible,flexible,flexible,flexible,18.5,47.0,55
+Phosphoglycerate kinase,flexible,flexible,flexible,flexible,13.7,35.0,24
+Citrate synthase,flexible,rigid,rigid,rigid,1.0,3.0,13
+Pyruvate kinase,flexible,rigid,rigid,rigid,1.2,3.0,20
+GalNAc-transferase 2,flexible,intermediate,intermediate,flexible,20.7,70.0,9
+Troponin C,flexible,rigid,rigid_helical,rigid,0.4,0.0,3
+Topoisomerase V,flexible,flexible,flexible,flexible,3.9,17.0,4
+LGP2,flexible,flexible,flexible,undetermined,,,4
+Protein disulfide-isomerase,flexible,intermediate,intermediate,flexible,13.5,35.0,3
+Cadherin-3,rigid,rigid,rigid,flexible,8.8,21.0,14
+Glutathione S-transferase P,rigid,rigid,rigid,rigid,0.6,2.0,65

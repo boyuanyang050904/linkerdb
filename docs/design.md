@@ -545,3 +545,51 @@ CATH/DSSP 画的 linker 边界会差几个残基,导致 end-to-end 在 7 Å 和 
 * 阈值是在这 12 个点上定的,属于**临时**值。
 * `intermediate` 不计分,所以 70% 只是决出胜负那部分的一致率。
 * 要真正用金标准集调参(尤其是延伸上限 `max_ext` 和边界),需要带核定残基边界的更大集合——这是 roadmap 第 1 条。
+
+---
+
+## 15. 结构叠合刚性度量(roadmap 第 4 条)
+
+§13.3 的 `dom_dist` + 肘角幅度是**廉价代理**。真正干净、从根上处理转动的度量是**结构叠合**
+(`superpose.py`):把一个蛋白的多个结构按 **N 侧结构域**叠合,再看 **C 侧结构域**移动了多少。
+
+### 15.1 方法
+
+对同一个 linker 的两个结构:按 **UniProt 位置**对应残基(不同 PDB 条目的 SEQRES 编号不同)→ Kabsch 叠合 N 侧结构域的
+Cα → 把该变换作用到 C 侧结构域 → 量 C 侧 Cα 的 RMSD(`c_rmsd`,同时包含平移和转动)→ 另算两个结构域坐标系之间的相对转角
+(`hinge`)。一组的"活动度"取其余结构对最佳分辨率参考结构的最大值。分类:`c_rmsd ≤ 1.5 Å` 且 `hinge ≤ 10°` → rigid;
+`c_rmsd ≥ 3 Å` 或 `hinge ≥ 20°` → flexible。每侧至少 5 个共享 Cα 才算,否则 `undetermined`。
+
+### 15.2 金标准集上的验证(`scripts/superpose_golden.py`)
+
+| 蛋白 | 期望 | 代理 | 叠合 | c_rmsd(Å) | hinge(°) |
+|---|---|---|---|---|---|
+| Calmodulin | flexible | flexible | flexible | 46.7 | 178 |
+| Maltose-binding protein | flexible | flexible | flexible | 18.5 | 47 |
+| Phosphoglycerate kinase | flexible | flexible | flexible | 13.7 | 35 |
+| GalNAc-transferase 2 | flexible | **intermediate** | **flexible** | 20.7 | 70 |
+| Protein disulfide-isomerase | flexible | **intermediate** | **flexible** | 13.5 | 35 |
+| Topoisomerase V | flexible | flexible | flexible | 3.9 | 17 |
+| Glutathione S-transferase P | rigid | rigid | rigid | 0.6 | 2 |
+| Citrate synthase | flexible | rigid | rigid | 1.0 | 3 |
+| Pyruvate kinase | flexible | rigid | rigid | 1.2 | 3 |
+| Troponin C | flexible | rigid_helical | rigid | 0.4 | 0 |
+| Cadherin-3 | rigid | rigid | flexible | 8.8 | 21 |
+| LGP2 | flexible | flexible | undetermined | — | — |
+
+要点:
+
+* 叠合**原生**判对了 MBP / PGK / 钙调蛋白(靠 hinge 转角,不需要 §13.3 的肘角幅度补丁——它本来就是那个补丁的"正版")。
+* 它把代理判不定的两个 `intermediate`(GalNAc-T2、PDI)**解析成了正确的 flexible**,比代理更强。
+* 仍判错的 3 个(柠檬酸合酶、丙酮酸激酶、肌钙蛋白 C)叠合后 `c_rmsd` 都 ≈ 1 Å、`hinge` ≈ 0——
+  **确认是采样问题**:我们收到的这些蛋白的结构全是同一构象,任何度量都测不出柔性。
+* Cadherin-3 叠合判成 flexible,其实不算错:它的结构里含**无钙(apo)**形式,那时 linker 确实是柔的——
+  是我金标准里"rigid"这个粗标签把 Ca 结合态当成了全部。说明金标准标签本身也需要分条件核定。
+* LGP2 `undetermined`:跨结构共享的核心残基不足 5 个,诚实地不给结论。
+
+### 15.3 现状与下一步
+
+`superpose.py` + `scripts/superpose_golden.py` 已实现并在金标准集上验证。它比代理更准,但**更重**(要重新读结构、重算结构域),
+所以目前是**分析 / 验证工具,没有并进默认 build**。下一步可选:对高置信(`n_structures ≥ 3`,约 7,914 条)的典型 linker
+批量算 `max_c_rmsd` / `max_hinge` 并写进 `linkers_canonical.parquet`,用叠合判定替换代理判定——代价是一次约 1.5 小时的重算
+(要重新读那些结构)。
