@@ -128,22 +128,23 @@ def test_cli_end_to_end(data_dir, tmp_path, capsys):
     text = capsys.readouterr().out
     assert "sample: 4 entries" in text and (out / "linkers.parquet").exists()
 
-    full = tmp_path / "full"
-    assert cli.main(common + ["build", "--out", str(full)]) == 0
+    db = tmp_path / "db"
+    assert cli.main(common + ["build", "--out", str(db)]) == 0
     text = capsys.readouterr().out
-    assert "final linkers" in text
-    final = pd.read_parquet(full / "linkers.parquet")
-    chains = pd.read_parquet(full / "chains.parquet")
-    info = json.loads((full / "run_info.json").read_text())
-    assert info["domain_source"] == "CATH v4.4.0" and info["rules"]["max_resolution"] == 2.5
-    assert final["qc_pass"].all() and (final["resolution"] <= 2.5).all()
-    assert "2rh1" not in set(final["pdb_id"])  # engineered fusion never reaches the final set
+    assert "canonical linkers:" in text
+    instances = pd.read_parquet(db / "linkers_instances.parquet")
+    chains = pd.read_parquet(db / "chains.parquet")
+    info = json.loads((db / "run_info.json").read_text())
+    assert info["domain_source"] == "CATH v4.4.0" and info["mode"] == "database"
+    ok = instances[instances["qc_pass"]]
+    assert (ok["resolution"] <= 2.5).all()
+    assert "2rh1" not in set(ok["pdb_id"])  # engineered fusion never passes QC
     assert chains.loc[chains.pdb_id == "2rh1", "status"].item() == "excluded_chimera"
-    assert (full / "candidates.parquet").exists()
+    assert (db / "candidates.parquet").exists()
 
-    assert cli.main(common + ["summary", str(full / "linkers.parquet")]) == 0
+    assert cli.main(common + ["summary", str(db / "linkers_instances.parquet")]) == 0
     assert "qc_pass" in capsys.readouterr().out
-    lid = final["linker_id"].iloc[0]
+    lid = ok["linker_id"].iloc[0]
     assert cli.main(common + ["show", lid, "1cns_A_9", "1cns_Q_1", "--json"]) == 0
     text = capsys.readouterr().out
     assert lid in text and "no such junction" in text and "chain not in" in text
@@ -152,4 +153,4 @@ def test_cli_end_to_end(data_dir, tmp_path, capsys):
 def test_cli_build_limit_and_parallel(data_dir, tmp_path, capsys):
     common = ["--data-dir", str(data_dir), "--workers", "2"]
     assert cli.main(common + ["build", "--limit", "2", "--max-resolution", "2.1", "--out", str(tmp_path / "f")]) == 0
-    assert "final linkers" in capsys.readouterr().out
+    assert "canonical linkers:" in capsys.readouterr().out

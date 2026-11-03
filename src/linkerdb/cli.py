@@ -13,6 +13,7 @@ import argparse
 import dataclasses
 import json
 import logging
+import random
 import sys
 import time
 from pathlib import Path
@@ -20,16 +21,18 @@ from pathlib import Path
 import pandas as pd
 
 from . import __version__
+from .aggregate import aggregate
 from .config import Rules, Settings
 from .domains.resolve import SOURCES, build_provider
 from .download import Downloader, fetch_structure
 from .linkers import ChainSkip, chain_ss, extract_linkers, map_domains, natural_problem
-from .pipeline import Run, write_outputs
+from .pipeline import Run, _json_default, write_outputs
+from .retrieve import format_hits, query_canonical
 from .selection import (attach_clusters, candidate_chains, chains_of_entries, dedup_linkers, rank_candidates,
                         sample_entries)
 from .sifts import fetch_sifts, load_sifts
 from .sources import fetch_entity_info, fetch_indices, parse_clusters, parse_entry_type, parse_resolu
-from .stats import show_linker, summarize
+from .stats import show_linker, summarize, summarize_canonical
 from .structure import load_structure
 
 log = logging.getLogger("linkerdb")
@@ -101,79 +104,77 @@ def cmd_sample(args) -> int:
 
 
 def cmd_build(args) -> int:
+    """Build the linker database: every domain junction in every multi-domain chain
+    (one chain per entity per entry), grouped into canonical linkers by UniProt region."""
     settings = _settings(args)
     rules = settings.rules
     dl = Downloader(timeout=settings.timeout, retries=settings.retries)
     provider, notes = _provider(settings, dl, args.sources)
-    paths = fetch_indices(settings.raw_dir, dl, args.identity)
+    paths = fetch_indices(settings.raw_dir, dl, 40)
     resolu = parse_resolu(paths["resolu"])
     etype = parse_entry_type(paths["entry_type"])
     cands = candidate_chains(provider, resolu, etype, rules.max_resolution)
     log.info("candidates: %d chains in %d entries (resolution <= %.2f)", len(cands), cands["pdb_id"].nunique(),
              rules.max_resolution)
-    if args.limit:
-        keep = sorted(cands["pdb_id"].unique())[: args.limit]
-        cands = cands[cands["pdb_id"].isin(keep)]
     ent_info = fetch_entity_info(cands["pdb_id"].unique(), settings.raw_dir / "rcsb" / "entities.jsonl", dl)
     wanted = {e["entity"] for p in cands["pdb_id"].unique() for e in ent_info.get(p, {}).get("entities", [])}
     clusters = parse_clusters(paths["clusters"], wanted)
     n_dom = {k: provider.get(k[:4], k[4:]).n_domains for k in (cands["pdb_id"] + cands["chain"])}
-    ranked = rank_candidates(attach_clusters(cands, ent_info, clusters, n_dom))
-    log.info("clusters: %d (%d ranked chains)", ranked["cluster"].nunique(), len(ranked))
+    cands = attach_clusters(cands, ent_info, clusters, n_dom)
+    cands = cands[cands["polymer_type"].isna() | (cands["polymer_type"] == "polypeptide(L)")].reset_index(drop=True)
 
-    sifts = load_sifts(fetch_sifts(settings.raw_dir, dl), set(ranked["pdb_id"]))
+    if args.sample_clusters:
+        nstruct = cands.groupby("cluster")["pdb_id"].nunique()
+        pool = sorted(nstruct[(nstruct >= 3) & (nstruct <= 15)].index)  # redundant but cheap to download
+        random.Random(args.seed).shuffle(pool)
+        pick = set(pool[: args.sample_clusters])
+        cands = cands[cands["cluster"].isin(pick)]
+        log.info("sample-clusters: %d redundant clusters -> %d chains", len(pick), len(cands))
+    elif args.limit:
+        keep = sorted(cands["pdb_id"].unique())[: args.limit]
+        cands = cands[cands["pdb_id"].isin(keep)]
+
+    cluster_of = {(r.pdb_id, r.chain): r.cluster for r in cands.itertuples()}
+    sifts = load_sifts(fetch_sifts(settings.raw_dir, dl), set(cands["pdb_id"]))
     run = Run(settings, args.run_name)
-    resolved: dict[str, tuple[str, str]] = {}
-    all_chains, all_linkers = [], []
-    for attempt in range(rules.tries_per_cluster):
-        todo = ranked[(ranked["rank"] == attempt) & ~ranked["cluster"].isin(resolved)]
-        if todo.empty:
-            break
-        log.info("attempt %d: %d clusters", attempt + 1, len(todo))
-        jobs = _jobs(provider, todo.groupby("pdb_id")["chain"].apply(list).to_dict())
-        chains, linkers = run.execute(jobs, workers=args.workers, sifts=sifts)
-        all_chains.append(chains)
-        all_linkers.append(linkers)
-        ok = chains[chains["status"] == "ok"]
-        okset = set(zip(ok["pdb_id"], ok["chain"]))
-        for row in todo.itertuples():
-            if (row.pdb_id, row.chain) in okset:
-                resolved[row.cluster] = (row.pdb_id, row.chain)
-    chains = pd.concat(all_chains, ignore_index=True) if all_chains else pd.DataFrame()
-    linkers = pd.concat(all_linkers, ignore_index=True) if all_linkers else pd.DataFrame()
-    rep = {pc: clu for clu, pc in resolved.items()}
-    chains["cluster"] = [rep.get((p, c)) for p, c in zip(chains["pdb_id"], chains["chain"])]
-    chains["representative"] = chains["cluster"].notna()
-    rank_of = {(r.pdb_id, r.chain): (r.cluster, r.rank) for r in ranked.itertuples()}
-    if not linkers.empty:
-        # linker records carry the author chain; representatives are keyed by the CATH chain
+    jobs = _jobs(provider, cands.groupby("pdb_id")["chain"].apply(list).to_dict())
+    # one chain per entity per entry: crystallographic copies are not independent evidence
+    chains, instances = run.execute(jobs, workers=args.workers, one_per_entity=True, sifts=sifts, force=args.force)
+
+    out_dir = Path(args.out)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    cands.to_parquet(out_dir / "candidates.parquet", index=False)
+    if not instances.empty:
         auth_to_cath = {(r.pdb_id, r.auth_asym_id): r.chain for r in chains.itertuples()
                         if isinstance(r.auth_asym_id, str)}
-        linkers["cath_chain"] = [auth_to_cath.get((p, a), a) for p, a in zip(linkers["pdb_id"], linkers["auth_asym_id"])]
-        linkers["cluster"] = [rank_of.get((p, c), (None, None))[0] for p, c in zip(linkers["pdb_id"], linkers["cath_chain"])]
-        is_rep = [(p, c) in rep for p, c in zip(linkers["pdb_id"], linkers["cath_chain"])]
-        final = linkers[pd.Series(is_rep, index=linkers.index) & linkers["qc_pass"]]
-        seqs = {(r.pdb_id, r.auth_asym_id): r.sequence for r in chains.itertuples()
-                if isinstance(getattr(r, "sequence", None), str)}
-        final = dedup_linkers(final, ["resolution", "pdb_id", "auth_asym_id", "junction_index"],
-                              rules.dedup_identity, chain_seqs=seqs, cache_path=run.dir / "alignments.jsonl")
-        dropped = final.attrs.get("dropped", {})
-        linkers["dedup_dropped"] = linkers["linker_id"].map(dropped)
+        instances["cath_chain"] = [auth_to_cath.get((p, a), a)
+                                   for p, a in zip(instances["pdb_id"], instances["auth_asym_id"])]
+        instances["cluster40"] = [cluster_of.get((p, c)) for p, c in zip(instances["pdb_id"], instances["cath_chain"])]
+        canonical = aggregate(instances)
     else:
-        final, dropped = linkers, {}
-    info = _info(settings, provider, notes, identity=args.identity, n_candidates=len(cands),
-                 n_clusters=int(ranked["cluster"].nunique()), n_representatives=len(resolved),
-                 n_dedup_dropped=len(dropped), n_final=len(final))
-    Path(args.out).mkdir(parents=True, exist_ok=True)
-    ranked.to_parquet(Path(args.out) / "candidates.parquet", index=False)
-    out = write_outputs(Path(args.out), chains, linkers, final, info)
-    rep_chains = chains[chains["representative"]]
-    bg = rep_chains["sequence"] if "sequence" in rep_chains else None
-    print(summarize(rep_chains, final, bg, title=f"full dataset (<= {rules.max_resolution} Å, {args.identity}% clusters)"))
-    print(f"clusters: {ranked['cluster'].nunique()}  representatives: {len(resolved)}  "
-          f"dedup dropped: {len(dropped)}  final linkers: {len(final)}")
-    for k, p in out.items():
-        print(f"wrote {k}: {p}")
+        canonical = pd.DataFrame()
+    info = _info(settings, provider, notes, mode="database", n_candidate_chains=len(cands),
+                 n_entries=int(cands["pdb_id"].nunique()),
+                 n_instances=0 if instances.empty else int(instances["qc_pass"].sum()),
+                 n_canonical=len(canonical),
+                 n_canonical_grouped=0 if canonical.empty else int(canonical["grouped"].sum()))
+    chains.to_parquet(out_dir / "chains.parquet", index=False)
+    instances.to_parquet(out_dir / "linkers_instances.parquet", index=False)
+    canonical.to_parquet(out_dir / "linkers_canonical.parquet", index=False)
+    (out_dir / "run_info.json").write_text(json.dumps(info, indent=2, default=_json_default))
+    print(summarize_canonical(canonical, instances, title=f"linker database (<= {rules.max_resolution} Å)"))
+    for name in ("chains", "linkers_instances", "linkers_canonical"):
+        print(f"wrote {name}: {out_dir / (name + '.parquet')}")
+    return 0
+
+
+def cmd_query(args) -> int:
+    df = pd.read_parquet(args.canonical)
+    hits = query_canonical(df, distance=args.distance, distance_tol=args.distance_tol, rigidity=args.rigidity,
+                           human_only=args.human, min_length=args.min_length, max_length=args.max_length,
+                           min_structures=args.min_structures, no_glyc=args.no_glyc, no_cys=args.no_cys,
+                           max_liability=args.max_liability, top=args.top)
+    print(format_hits(hits))
     return 0
 
 
@@ -240,14 +241,32 @@ def main(argv=None) -> int:
     s.add_argument("--force", action="store_true", help="ignore checkpoints")
     s.set_defaults(func=cmd_sample)
 
-    s = sub.add_parser("build", help="full non-redundant dataset")
+    s = sub.add_parser("build", help="build the linker database (all multi-domain chains -> canonical linkers)")
     s.add_argument("--max-resolution", type=float)
-    s.add_argument("--identity", type=int, default=40, choices=[30, 40, 50, 70, 90, 95, 100])
     s.add_argument("--max-ext", type=int)
     s.add_argument("--limit", type=int, help="only the first N candidate entries (testing)")
-    s.add_argument("--run-name", default="full")
-    s.add_argument("--out", default="results/full")
+    s.add_argument("--sample-clusters", type=int,
+                   help="process all members of N random redundant clusters (fast, redundancy-rich testing)")
+    s.add_argument("--seed", type=int, default=0)
+    s.add_argument("--run-name", default="db")
+    s.add_argument("--out", default="results/db")
+    s.add_argument("--force", action="store_true", help="ignore checkpoints")
     s.set_defaults(func=cmd_build)
+
+    s = sub.add_parser("query", help="search canonical linkers (e.g. --distance 25 --rigidity rigid --human)")
+    s.add_argument("--canonical", default="results/db/linkers_canonical.parquet")
+    s.add_argument("--distance", type=float, help="target inter-domain COM distance (Å)")
+    s.add_argument("--distance-tol", type=float, default=5.0)
+    s.add_argument("--rigidity", choices=["rigid", "flexible", "any"])
+    s.add_argument("--human", action="store_true")
+    s.add_argument("--min-length", type=int)
+    s.add_argument("--max-length", type=int)
+    s.add_argument("--min-structures", type=int, default=1)
+    s.add_argument("--no-glyc", action="store_true", help="exclude linkers with an N-glycosylation sequon")
+    s.add_argument("--no-cys", action="store_true")
+    s.add_argument("--max-liability", type=int)
+    s.add_argument("--top", type=int, default=20)
+    s.set_defaults(func=cmd_query)
 
     s = sub.add_parser("summary", help="print statistics of a linkers parquet file")
     s.add_argument("linkers")

@@ -10,6 +10,39 @@ import pandas as pd
 AA20 = "ACDEFGHIKLMNPQRSTVWY"
 
 
+def summarize_canonical(canonical: pd.DataFrame, instances: pd.DataFrame | None = None,
+                        title: str = "canonical linkers") -> str:
+    lines = [f"===== {title} ====="]
+    if instances is not None and not instances.empty:
+        lines.append(f"instances: {len(instances)} junctions, {int(instances['qc_pass'].sum())} qc_pass "
+                     f"from {instances.groupby(['pdb_id', 'auth_asym_id']).ngroups} chains")
+    if canonical.empty:
+        lines.append("no canonical linkers")
+        return "\n".join(lines)
+    c = canonical
+    grouped = c[c["grouped"]]
+    lines.append(f"canonical linkers: {len(c)}  (grouped by UniProt: {len(grouped)}, ungrouped: {len(c) - len(grouped)})")
+    lines.append(f"distinct UniProt: {c['uniprot'].nunique()}   human: {int(c['is_human'].sum())} "
+                 f"({c['is_human'].mean():.0%})")
+    multi = c[c["n_structures"] >= 3]
+    lines.append(f"with >=3 structures (rigidity assessable): {len(multi)} ({len(multi) / len(c):.0%}); "
+                 f"max structures for one linker: {int(c['n_structures'].max())}")
+    lines.append("rigidity: " + ", ".join(f"{k}={v}" for k, v in c["rigidity"].value_counts().items()))
+    lines.append("rigidity confidence: " + ", ".join(f"{k}={v}" for k, v in
+                                                      c["rigidity_confidence"].value_counts().items()))
+    lines.append("length (median per linker): " + _q(c["length_median"]))
+    hi = c[c["end_to_end_cv"].notna()]
+    if len(hi):
+        lines.append(f"end-to-end CV (flexibility proxy, n>=2 structures): median {hi['end_to_end_cv'].median():.2f} "
+                     f"over {len(hi)} linkers")
+    liab = {k: int((c[k] > 0).sum()) for k in ("n_glyc", "deamid_ng", "isomer_dg", "n_cys", "furin") if k in c}
+    lines.append("linkers carrying a liability: " + ", ".join(f"{k}={v} ({v / len(c):.0%})" for k, v in liab.items()))
+    clean = c[(c.get("n_glyc", 0) == 0) & (c.get("deamid_ng", 0) == 0) & (c.get("isomer_dg", 0) == 0) &
+              (c.get("furin", 0) == 0)]
+    lines.append(f"liability-free linkers: {len(clean)} ({len(clean) / len(c):.0%})")
+    return "\n".join(lines)
+
+
 def _q(s: pd.Series) -> str:
     if s.empty:
         return "n/a"

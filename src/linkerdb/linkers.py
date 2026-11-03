@@ -228,6 +228,24 @@ def _dist(p, q) -> float | None:
     return float(np.linalg.norm(p - q))
 
 
+def _domain_centroid(chain: Chain, dom: "MappedDomain") -> np.ndarray | None:
+    """Mean CA position of a domain's modelled residues (a crude positional handle;
+    what matters downstream is how it varies across structures of the same linker)."""
+    pts = [p for a, b in dom.segments for i in range(a, b + 1) if (p := _ca(chain, i)) is not None]
+    return np.mean(pts, axis=0) if pts else None
+
+
+def _angle(p, q, r) -> float | None:
+    """Angle at ``q`` (degrees) formed by p-q-r."""
+    if p is None or q is None or r is None:
+        return None
+    v1, v2 = p - q, r - q
+    n = np.linalg.norm(v1) * np.linalg.norm(v2)
+    if n == 0:
+        return None
+    return float(np.degrees(np.arccos(np.clip(np.dot(v1, v2) / n, -1.0, 1.0))))
+
+
 def _unp_check(chain: Chain, a: int, b: int) -> tuple[str | None, list[int | None], str | None]:
     """UniProt positions of residues a..b; returns (accession, positions, failure-flag)."""
     pos: list[int | None] = []
@@ -324,6 +342,18 @@ def extract_linkers(chain: Chain, mapped: MappedChain, ss: str, rules: Rules = R
                     flags.append("geometry_violation")
                     break
 
+        # inter-domain arrangement (for cross-structure rigidity in the canonical layer)
+        n_com = _domain_centroid(chain, jx.n_dom)
+        c_com = _domain_centroid(chain, jx.c_dom)
+        dom_dist = _dist(n_com, c_com)
+        pe, ps = _ca(chain, e), _ca(chain, s)
+        if pe is not None and ps is not None:
+            jpoint = (pe + ps) / 2
+        else:
+            lkpts = [p for i in range(left, right + 1) if (p := _ca(chain, i)) is not None]
+            jpoint = np.mean(lkpts, axis=0) if lkpts else None
+        elbow_angle = _angle(n_com, jpoint, c_com)
+
         residues = chain.residues[left - 1:right]
         nonstd = sorted({r.mon_id for r in residues if r.nonstandard})
         if nonstd:
@@ -386,6 +416,8 @@ def extract_linkers(chain: Chain, mapped: MappedChain, ss: str, rules: Rules = R
             "ca_junction": d_es,
             "ca_span": _dist(_ca(chain, left - 1), _ca(chain, right + 1)),
             "end_to_end": _dist(_ca(chain, left), _ca(chain, right)) if ss_len else None,
+            "dom_dist": dom_dist,
+            "elbow_angle": elbow_angle,
             "uniprot": acc,
             "unp_start": unp_at(left) if ss_len else unp_at(s),
             "unp_end": unp_at(right) if ss_len else unp_at(e),
