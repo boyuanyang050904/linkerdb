@@ -453,21 +453,22 @@ ID 形如 `P12345:185-198`(区间取成员中位数)。不同结构域交界落�
 CATH/DSSP 画的 linker 边界会差几个残基,导致 end-to-end 在 7 Å 和 25 Å 之间跳(例:AIF `O95831` 的一个交界,
 `ss_length` 在 3 和 9 之间变),这是**边界噪声**,不是结构域运动。
 
-改用**结构域质心距离 `dom_dist` 的跨结构变异系数(CV)**,它只由两侧完整结构域决定,与 linker 边界无关,
-直接反映"两个结构域是否保持固定距离":
+改用两个与 linker 边界无关、只由两侧完整结构域决定的量:**结构域质心距离 `dom_dist` 的跨结构变异系数(CV)**
+反映"两个结构域是否保持固定距离";**肘角 `elbow_angle` 的跨结构稳健幅度(p90−p10)**反映"结构域是否相对转动"。
+后者是必要的,因为质心距离看不出"距离不变、纯粹绕铰链转动"的运动(典型如 MBP 的捕蝇草式开合)——这一点由金标准集暴露(第 14 节)。
+肘角的标准差会被占多数的那一种构象稀释,所以用幅度而不是标准差。
 
 * `frac_helix ≥ 0.5` → `rigid_helical`(连续螺旋型 linker);
-* 否则,`n_structures ≥ 3` 且有 ≥ 3 个 `dom_dist` 测量:
-  `dom_dist_cv ≤ 0.05` 且 `elbow_angle_std ≤ 15°` → `rigid`;
-  `dom_dist_cv ≥ 0.15` 或 `elbow_angle_std ≥ 40°` → `flexible`;
+* 否则,`n_structures ≥ 3` 且有 ≥ 3 个测量:
+  `dom_dist_cv ≤ 0.05` 且 `elbow_angle_range ≤ 12°` → `rigid`;
+  `dom_dist_cv ≥ 0.15` 或 `elbow_angle_range ≥ 20°` → `flexible`;
   其间 → `intermediate`;置信度 `high`;
 * 否则(单 / 少结构):若多数结构 linker 无序 → `flexible_disordered`;再否则按共识二级结构猜(`rigid_helical` /
   `strand_spanning` → 偏刚,`coil` → 偏柔),置信度 `low`。
 
-子样本结果合理:判为 `flexible` 的高置信条目是已知的多结构域运动体(拓扑异构酶 V、RIG-I 样解旋酶 LGP2、
-GalNAc 转移酶的催化–凝集素铰链);AIF 那个交界在修正后正确判为 `rigid`(`dom_dist_cv` 0.02)。
-阈值是启发式的,**下一步要用人工金标准集重新标定**(见第 14 节 roadmap)。局限:`dom_dist` 看不出"质心距离不变、
-纯粹绕铰链转动"的情形,也依赖同一蛋白有多个不同构象的结构才能给出 `high` 置信。
+阈值是启发式的,用第 14 节的种子金标准集标定(金标准集一致率 56% → 70%)。两条局限仍在:
+(1)**采样**——若某蛋白在 PDB 里只有一种构象(如我们收到的柠檬酸合酶 13 个结构都是同一态),就测不出它的柔性,
+由 `n_structures` / `rigidity_confidence` 提示;(2)肘角幅度能部分补救转动,但真正干净的办法是做结构叠合(roadmap 第 4 条)。
 
 ### 13.4 可开发性标记(`developability.py`)
 
@@ -490,16 +491,57 @@ GalNAc 转移酶的催化–凝集素铰链);AIF 那个交界在修正后正确�
 | 文件 | 内容 |
 |---|---|
 | `linkers_instances.parquet` | 每条链每个交界一行(§9 的列 + `dom_dist`、`elbow_angle`、`cluster40`、`cath_chain`) |
-| `linkers_canonical.parquet` | 每个典型 linker 一行:`canonical_id`、`uniprot`、`unp_lo/hi`、`grouped`、`linker_class`、`n_structures`、`n_entries`、`rep_*`、`best_resolution`、`sequence`、`coil_sequence`、`length_*`、`rigidity`、`rigidity_confidence`、`dom_dist_median`、`dom_dist_cv`、`elbow_angle_*`、`end_to_end_*`、`frac_disordered`、`frac_helix`、`junction_ss/type`、`cath_n/c`、`taxid`、`is_human`、可开发性计数 + `liability_tags` + `liability_score`、`n_clusters40` |
+| `linkers_canonical.parquet` | 每个典型 linker 一行:`canonical_id`、`uniprot`、`unp_lo/hi`、`grouped`、`linker_class`、`n_structures`、`n_entries`、`rep_*`、`best_resolution`、`sequence`、`coil_sequence`、`length_*`、`rigidity`、`rigidity_confidence`、`dom_dist_median`、`dom_dist_cv`、`elbow_angle_median`、`elbow_angle_std`、`elbow_angle_range`、`end_to_end_*`、`frac_disordered`、`frac_helix`、`junction_ss/type`、`cath_n/c`、`taxid`、`is_human`、可开发性计数 + `liability_tags` + `liability_score`、`n_clusters40` |
 | `chains.parquet` | 每条处理过的链的状态(同 §9) |
 | `candidates.parquet` | 候选链及其 40% 簇 |
 | `run_info.json` | 版本、规则、计数 |
 
 ### 13.7 没做 / 下一步(roadmap)
 
-1. **人工金标准集**(100–200 个文献里定义清楚的 linker)重新标定延伸上限和刚性阈值,并决定螺旋型 linker 的边界。
+1. **人工金标准集**:已建**种子集**(~12 条,第 14 节),并据此加了肘角幅度项、把刚性一致率从 56% 提到 70%。
+   下一步扩到 100–200 条**专家 / 文献核定**的条目(含核定的残基边界),用来重新标定延伸上限和刚性阈值,并决定螺旋型 linker 的边界。
 2. **和人工 linker 对照**:在相同距离需求下,天然 linker 与 (G4S)n、EAAAK 的长度 / 刚性 / 液相标记对比,作为库的价值证明。
 3. **扩覆盖面**:加 ECOD 作第二个结构域来源(补 CATH 未覆盖的 22% 和新结构),抗体 / TCR 的 elbow 单列一类,
    AlphaFold 结构作单独一层(带 pLDDT)。
 4. **更强的刚性度量**:做结构叠合,捕捉"质心距离不变的纯转动",区分真·刚性和采样不足。
 5. **交付**:版本化 parquet + DuckDB/SQLite + 文档;定期增量收录新 PDB 条目;发布前核对各来源许可(PDB CC0,UniProt/CATH 需署名)。
+
+---
+
+## 14. 金标准集(种子)
+
+### 14.1 这是什么、不是什么
+
+`golden/golden_set.csv` 是一个**种子**金标准集(~12 个蛋白),用来检验——并最终标定——数据库的刚性判定。
+
+**诚实声明**:它来自公认的结构生物学常识,**不是带文献引用的人工核定语料,也没有逐残基核定的边界**。
+每个条目的 UniProt 都已核对确实在数据库里,但 `expected_rigidity`(rigid / flexible)是定性判断。
+它足以暴露系统性错误(已经暴露了"质心距离看不出铰链转动"),但**不足以严格标定阈值**——要用它调参数之前,
+必须由专家扩充并核定。CSV 里的 `note` 是行为说明,不是引用。
+
+### 14.2 打分方法(`golden.py` / `linkerdb score-golden`)
+
+对每个金标准蛋白,取它在数据库里结构数最多的那个典型 linker,把我们的刚性标签粗化到 rigid / flexible 轴
+(`rigid_helical`、`strand_spanning` → rigid;`flexible_disordered` → flexible;`intermediate` 不计分),
+再和期望比较。输出逐条对错 + 总一致率。
+
+### 14.3 结果与由此做的修改
+
+种子集上:**决出胜负的 10 条里 7 条一致(70%)**。
+
+* **对**:钙调蛋白、MBP、磷酸甘油酸激酶(flexible);拓扑异构酶 V、LGP2(flexible);钙粘蛋白、GST(rigid)。
+* **仍错(3 条)**:柠檬酸合酶、丙酮酸激酶、肌钙蛋白 C——都被判 rigid,但其实有铰链运动。检查发现这不是度量的错,
+  而是**采样**:我们收到的这些蛋白的结构几乎全是同一种构象(柠檬酸合酶 13 个结构肘角幅度仅 1°;肌钙蛋白 C 只有 3 个结构)。
+  没有第二种构象,任何度量都测不出柔性。由 `rigidity_confidence` 提示,等 PDB 里有更多构象时自然改善。
+* **中间**:GalNAc 转移酶 2、蛋白二硫键异构酶判为 `intermediate`(不计分),与"柔性"方向一致但不确定。
+
+**关键修改**:最初只用 `dom_dist_cv`,MBP(捕蝇草铰链)和 PGK 被判成 rigid——因为它们的结构域是**绕铰链转动**,
+质心距离几乎不变(MBP `dom_dist_cv` 0.05),但肘角幅度有 20–22°。于是加了肘角幅度项(§13.3),一致率 56% → 70%,
+全局只有约 4% 的 rigid(8,026 → 7,714)被重新分类,没有过拟合式的大摆动。
+
+### 14.4 局限
+
+* 种子集偏"柔性"(大多数多结构域蛋白都有些结构域间活动;刚性的天然 linker 更少)。
+* 阈值是在这 12 个点上定的,属于**临时**值。
+* `intermediate` 不计分,所以 70% 只是决出胜负那部分的一致率。
+* 要真正用金标准集调参(尤其是延伸上限 `max_ext` 和边界),需要带核定残基边界的更大集合——这是 roadmap 第 1 条。

@@ -1,0 +1,13 @@
+protein,uniprot,expected,confidence,found,ours,rigidity,canonical_id,n_structures,rigidity_confidence,dom_dist_cv,elbow_angle_std,elbow_angle_range,match
+Calmodulin,P0DP23,flexible,high,True,flexible,flexible,P0DP23:78-83,38,high,0.23449899002336694,38.71967716615317,97.34716056193567,True
+Maltose-binding protein,P0AEX9,flexible,high,True,flexible,flexible,P0AEX9:137-140,55,high,0.04975232382179473,9.921734049360959,21.771054016727447,True
+Phosphoglycerate kinase,P00558,flexible,high,True,flexible,flexible,P00558:189-196,24,high,0.0569755932124129,8.686965255240965,20.227295882338282,True
+Citrate synthase,P23007,flexible,high,True,rigid,rigid,P23007:269-277,13,high,0.004942472488541295,0.8679989230605385,1.1111331462816025,False
+Pyruvate kinase,P14618,flexible,medium,True,rigid,rigid,P14618:31-46,20,high,0.006527236798225323,2.443077397082711,5.470752536114759,False
+GalNAc-transferase 2,Q10471,flexible,medium,True,intermediate,intermediate,Q10471:432-446,9,high,0.12937125195679453,4.4819439633480185,10.127606383282654,
+Troponin C,P02588,flexible,medium,True,rigid,rigid_helical,P02588:91-92,3,high,0.004611459491904334,0.13091815629251732,0.24937565349569013,False
+Topoisomerase V,Q977W1,flexible,medium,True,flexible,flexible,Q977W1:303-309,4,high,0.26358479380958955,5.813544293143762,12.43851796127575,True
+LGP2,G0YYQ5,flexible,medium,True,flexible,flexible,G0YYQ5:203-228,3,high,0.24382636814618794,12.725150644219807,26.625821512070033,True
+Protein disulfide-isomerase,P07237,flexible,medium,True,intermediate,intermediate,P07237:232-237,3,high,0.056520407519391316,7.166316069654402,13.582482482800259,
+Cadherin-3,P22223,rigid,high,True,rigid,rigid,P22223:206-214,14,high,0.006398595986501914,2.3087974416420702,6.198073205354376,True
+Glutathione S-transferase P,P09211,rigid,medium,True,rigid,rigid,P09211:77-84,65,high,0.014121676320492226,0.42744287158595246,1.1075202273949998,True

@@ -27,11 +27,16 @@ import pandas as pd
 
 from . import developability
 
-# rigidity thresholds (coefficient of variation of domain-centroid distance; std of elbow angle in degrees)
+# rigidity thresholds. dom_dist CV catches domains separating; the elbow-angle spread
+# (robust range p90-p10, in degrees) catches hinge *rotation* at ~constant centroid
+# distance, which dom_dist alone misses (golden set: MBP, PGK). Angle std is diluted by
+# a majority conformer, so the range is the primary angle signal. These are provisional,
+# calibrated on the ~12-entry seed golden set (docs/design.md section 14).
 DD_CV_RIGID = 0.05
 DD_CV_FLEX = 0.15
-ANGLE_STD_RIGID = 15.0
 ANGLE_STD_FLEX = 40.0
+ANGLE_RANGE_RIGID = 12.0
+ANGLE_RANGE_FLEX = 20.0
 MIN_STRUCT_FOR_RIGIDITY = 3
 
 
@@ -75,23 +80,23 @@ def _rigidity(g: pd.DataFrame) -> tuple[str, str, float | None, float | None]:
     frac_helix = float((g["junction_ss"] == "helix_spanning").mean())
     frac_disorder = float((g["n_missing"] > 0).mean())
     dd_cv = float(dd.std() / dd.mean()) if len(dd) >= 2 and dd.mean() > 0 else None
-    angle_std = float(ang.std()) if len(ang) >= 2 else None
+    angle_rng = float(np.percentile(ang, 90) - np.percentile(ang, 10)) if len(ang) >= 3 else None
     n = g[["pdb_id", "auth_asym_id"]].drop_duplicates().shape[0]
 
     if frac_helix >= 0.5:
-        return "rigid_helical", ("high" if n >= MIN_STRUCT_FOR_RIGIDITY else "low"), dd_cv, angle_std
+        return "rigid_helical", ("high" if n >= MIN_STRUCT_FOR_RIGIDITY else "low"), dd_cv, angle_rng
     if n >= MIN_STRUCT_FOR_RIGIDITY and len(dd) >= MIN_STRUCT_FOR_RIGIDITY:
-        rigid = (dd_cv is not None and dd_cv <= DD_CV_RIGID) and (angle_std is None or angle_std <= ANGLE_STD_RIGID)
-        flex = (dd_cv is not None and dd_cv >= DD_CV_FLEX) or (angle_std is not None and angle_std >= ANGLE_STD_FLEX)
+        rigid = (dd_cv is not None and dd_cv <= DD_CV_RIGID) and (angle_rng is None or angle_rng <= ANGLE_RANGE_RIGID)
+        flex = (dd_cv is not None and dd_cv >= DD_CV_FLEX) or (angle_rng is not None and angle_rng >= ANGLE_RANGE_FLEX)
         label = "rigid" if rigid else ("flexible" if flex else "intermediate")
-        return label, "high", dd_cv, angle_std
+        return label, "high", dd_cv, angle_rng
     if frac_disorder >= 0.5:
-        return "flexible_disordered", "low", dd_cv, angle_std
+        return "flexible_disordered", "low", dd_cv, angle_rng
     # single/few structures: fall back to the dominant secondary structure
     ss = _modal(g["junction_ss"])
     guess = {"helix_spanning": "rigid_helical", "strand_spanning": "rigid",
              "coil": "flexible", "sse_abutting": "intermediate"}.get(ss, "undetermined")
-    return guess, "low", dd_cv, angle_std
+    return guess, "low", dd_cv, angle_rng
 
 
 def _canonical_row(cid: str, g: pd.DataFrame, grouped: bool) -> dict:
@@ -99,7 +104,7 @@ def _canonical_row(cid: str, g: pd.DataFrame, grouped: bool) -> dict:
     g = g.assign(_obs=g["ss_length"] - g["n_missing"])
     rep = g.sort_values(["_obs", "resolution"], ascending=[False, True]).iloc[0]
     n_struct = g[["pdb_id", "auth_asym_id"]].drop_duplicates().shape[0]
-    label, conf, dd_cv, angle_std = _rigidity(g)
+    label, conf, dd_cv, angle_rng = _rigidity(g)
     coil_seq = rep["ss_sequence"] or ""
     # a zero-length (SSE-spanning) junction has no coil linker; the graftable connector is the
     # continuous helix/strand across the junction, so show a window of its flanking SSE sequence
@@ -134,7 +139,8 @@ def _canonical_row(cid: str, g: pd.DataFrame, grouped: bool) -> dict:
         "end_to_end_median": float(np.median(e2e)) if len(e2e) else None,
         "end_to_end_cv": float(e2e.std() / e2e.mean()) if len(e2e) >= 2 and e2e.mean() > 0 else None,
         "elbow_angle_median": float(np.median(ang)) if len(ang) else None,
-        "elbow_angle_std": angle_std,
+        "elbow_angle_std": float(ang.std()) if len(ang) >= 2 else None,
+        "elbow_angle_range": angle_rng,
         "dom_dist_median": float(np.median(dd)) if len(dd) else None,
         "dom_dist_cv": dd_cv,
         "frac_disordered": float((g["n_missing"] > 0).mean()),

@@ -18,6 +18,7 @@ pip install -e ".[test]"
 linkerdb fetch-meta                    # CATH v4.4.0, wwPDB indices, RCSB clusters, SIFTS (cached in ./data)
 linkerdb build --out results/db        # all multi-domain chains <= 2.5 Å -> instances + canonical linkers
 linkerdb query --distance 25 --rigidity rigid --human --no-glyc --min-structures 3
+linkerdb score-golden                  # check rigidity calls against the seed golden set
 linkerdb show 5t6i_A_1 13pk_A_1        # readable view of one junction (sequence / CATH / DSSP tracks)
 linkerdb sample --out results/sample50 # 50-entry validation sample (for checking the extraction rules)
 ```

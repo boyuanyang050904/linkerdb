@@ -1,0 +1,13 @@
+protein,uniprot,expected_rigidity,confidence,note
+Calmodulin,P0DP23,flexible,high,central-helix hinge; the two EF-hand lobes reorient widely between structures
+Maltose-binding protein,P0AEX9,flexible,high,Venus-flytrap hinge; two lobes clamp shut on maltose (open/closed)
+Phosphoglycerate kinase,P00558,flexible,high,classic hinge-bending enzyme; N and C domains close on catalysis
+Citrate synthase,P23007,flexible,high,open/closed domain motion on substrate binding (PDB may sample one state)
+Pyruvate kinase,P14618,flexible,medium,B-domain rotates over the barrel between conformations
+GalNAc-transferase 2,Q10471,flexible,medium,catalytic and lectin domains joined by a mobile linker
+Troponin C,P02588,flexible,medium,calmodulin-like; central helix flexible in solution (often helical in crystal)
+Topoisomerase V,Q977W1,flexible,medium,multidomain; domains reposition on DNA
+LGP2,G0YYQ5,flexible,medium,RIG-I-like helicase; domains move on RNA binding
+Protein disulfide-isomerase,P07237,flexible,medium,abb'a' arms swing as the horseshoe opens and closes
+Cadherin-3,P22223,rigid,high,calcium-bound inter-repeat linker; the hallmark rigid natural linker
+Glutathione S-transferase P,P09211,rigid,medium,compact two-domain fold with little inter-domain motion

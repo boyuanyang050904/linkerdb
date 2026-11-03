@@ -26,6 +26,7 @@ from .aggregate import aggregate
 from .config import Rules, Settings
 from .domains.resolve import SOURCES, build_provider
 from .download import Downloader, fetch_structure
+from .golden import load_golden, score_golden, summary as golden_summary
 from .linkers import ChainSkip, chain_ss, extract_linkers, map_domains, natural_problem
 from .pipeline import Run, _json_default, write_outputs
 from .retrieve import format_hits, query_canonical
@@ -178,6 +179,16 @@ def cmd_query(args) -> int:
     return 0
 
 
+def cmd_score_golden(args) -> int:
+    canonical = pd.read_parquet(args.canonical)
+    scored = score_golden(load_golden() if not args.golden else load_golden(args.golden), canonical)
+    print(golden_summary(scored))
+    if args.out:
+        scored.to_csv(args.out, index=False)
+        print(f"wrote {args.out}")
+    return 0
+
+
 def cmd_summary(args) -> int:
     linkers = pd.read_parquet(args.linkers)
     chains_path = Path(args.linkers).with_name("chains.parquet")
@@ -269,6 +280,12 @@ def main(argv=None) -> int:
     s.add_argument("--max-liability", type=int)
     s.add_argument("--top", type=int, default=20)
     s.set_defaults(func=cmd_query)
+
+    s = sub.add_parser("score-golden", help="compare the database's rigidity calls against the golden set")
+    s.add_argument("--canonical", default="results/db/linkers_canonical.parquet")
+    s.add_argument("--golden", help="golden-set CSV (default: bundled golden/golden_set.csv)")
+    s.add_argument("--out", help="write the per-entry scoring table to this CSV")
+    s.set_defaults(func=cmd_score_golden)
 
     s = sub.add_parser("summary", help="print statistics of a linkers parquet file")
     s.add_argument("linkers")

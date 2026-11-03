@@ -143,3 +143,17 @@ def test_build_and_query_offline(data_dir, tmp_path, capsys):
     assert cli.main(common + ["query", "--canonical", str(out / "linkers_canonical.parquet"),
                               "--distance", "30", "--distance-tol", "40", "--human"]) == 0
     assert len(capsys.readouterr().out) > 0
+
+
+def test_rigidity_angle_range_catches_rotation():
+    # domains stay the same distance apart (dom_dist ~ const) but rotate: elbow angle swings.
+    # dom_dist alone would call this rigid; the angle-range term must make it flexible.
+    rows = [_inst(p, "P9", 40, 60, dom_dist=30.0 + 0.1 * i, ang=a)
+            for i, (p, a) in enumerate([("1a", 110), ("1b", 112), ("1c", 150), ("1d", 148), ("1e", 111)])]
+    out = aggregate(pd.DataFrame(rows))
+    assert out.iloc[0]["rigidity"] == "flexible"
+    assert out.iloc[0]["elbow_angle_range"] >= 20
+    # small angle wobble stays rigid
+    rows = [_inst(p, "P8", 40, 60, dom_dist=30.0 + 0.1 * i, ang=120 + i)
+            for i, p in enumerate(["2a", "2b", "2c", "2d", "2e"])]
+    assert aggregate(pd.DataFrame(rows)).iloc[0]["rigidity"] == "rigid"
