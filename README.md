@@ -79,8 +79,9 @@ DB-wide by `superpose_db.py` (`rigidity_final`; `docs/design.md` §15).
 Two retrospective checks guard the rigidity/geometry calls against reality: `score-golden` (rigidity
 labels vs the conformational behaviour of known multi-domain proteins, §14) and `score-swaps` (the
 reach/rigidity *models* vs published linker-swap experiments — scFv length→oligomer crossover, EAAAK
-vs GS FRET sensors, §16). Both ship seed sets (`golden/`), honestly flagged as recollection-based and
-awaiting citation-curated expansion.
+vs GS FRET sensors, §16). Both ship seed sets (`golden/`); the swap corpus carries verified citations
+(Arai 2001, Holliger 1993, Kortt 1997, Bai & Shen 2006, Amet 2009) with a `verified` column, but is a
+small textbook-granularity seed, not a figure-level benchmark — see the honesty notes in §14 / §16.
 
 `results/sample50/` is the validation sample for the extraction rules (`docs/design.md` §8–§11). The
 first-stage non-redundant build and its linker-level dedup were retired in v3 (the database groups by

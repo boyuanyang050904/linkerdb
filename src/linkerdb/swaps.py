@@ -28,13 +28,15 @@ The library's prediction for each row is computed here from the library's own co
 and class convention, then compared. Changing ``HELIX_RISE`` / ``EXTENDED_COIL`` moves
 the score, which is the coupling we want.
 
-Honesty note (mirrors ``golden.py``): the bundled corpus is a *seed* assembled from
-established protein-engineering knowledge. The ``reference`` strings are recollections
-flagged for verification, not checked citations, and there are no hand-verified residue
-boundaries or digitised measurements. It is enough to show whether the models point the
-right way on textbook cases; it is NOT a citation-curated benchmark. Expand it with
-primary literature (and the measured distances / lengths) before drawing quantitative
-conclusions. See design.md section 16.
+Honesty note (mirrors ``golden.py``): the bundled corpus is a *seed*. Its ``reference``
+column now carries real citations, verified against abstracts / open-access full text
+and marked in the ``verified`` column (``yes`` / ``partial`` / ``no``); but the measured
+distances and threshold lengths are still read at textbook granularity (e.g. the ~35 A
+VH-VL gap, the ~12-residue scFv monomer threshold), not digitised from each paper's
+figures, and there are no hand-verified residue boundaries. It is enough to show whether
+the models point the right way on well-characterised cases; it is NOT a large, figure-level
+benchmark. Expand it with more constructs and digitised measurements before drawing
+quantitative conclusions. See design.md section 16.
 """
 
 from __future__ import annotations
@@ -131,7 +133,7 @@ def score_swaps(swaps: pd.DataFrame) -> pd.DataFrame:
             "observable": e["observable"], "expected": e["expected"],
             "prediction": pred_text, "agree": agree,
             "scored": agree is not None, "confidence": e.get("confidence"),
-            "reference": e.get("reference"),
+            "verified": e.get("verified"), "reference": e.get("reference"),
         })
     return pd.DataFrame(rows)
 
@@ -140,11 +142,12 @@ def summary(scored: pd.DataFrame) -> str:
     decided = scored[scored["scored"]]
     coverage = scored[~scored["scored"]]
     n_match = int(decided["agree"].sum()) if not decided.empty else 0
+    n_cited = int((scored["verified"] == "yes").sum()) if "verified" in scored.columns else 0
     lines = [
-        "linker-swap retrospective (SEED corpus -- recollection-based, not citation-curated; "
-        "see design.md section 16)",
-        f"  {len(scored)} comparisons: {len(decided)} scored on the reach/rigidity axes, "
-        f"{len(coverage)} out of scope (geometry cannot adjudicate -> no credit)",
+        "linker-swap retrospective (SEED corpus -- textbook-granularity, not a figure-level "
+        "benchmark; see design.md section 16)",
+        f"  {len(scored)} comparisons ({n_cited} citation-verified): {len(decided)} scored on the "
+        f"reach/rigidity axes, {len(coverage)} out of scope (geometry cannot adjudicate -> no credit)",
         f"  scored agreement: {n_match}/{len(decided)}"
         + (f" ({n_match / len(decided):.0%})" if len(decided) else ""),
     ]

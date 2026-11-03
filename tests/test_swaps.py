@@ -7,10 +7,13 @@ from linkerdb.swaps import load_swaps, predict, score_swaps, summary
 def test_bundled_swap_set_loads():
     s = load_swaps()
     assert len(s) >= 8
-    assert set(s.columns) >= {"system", "reference", "axis", "observable", "expected_kind", "expected"}
+    assert set(s.columns) >= {"system", "reference", "axis", "observable", "expected_kind",
+                              "expected", "verified"}
     assert set(s["axis"]) <= {"reach", "rigidity", "activity", "expression"}
-    # references are flagged as unverified recollection, never presented as checked citations
-    assert all("recollection" in r for r in s["reference"])
+    # every row carries a non-empty citation and an explicit verification status
+    assert all(isinstance(r, str) and r.strip() for r in s["reference"])
+    assert set(s["verified"]) <= {"yes", "partial", "no"}
+    assert (s["verified"] == "yes").sum() >= 5   # most of the seed is citation-verified
 
 
 def _row(**kw):
