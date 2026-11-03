@@ -100,7 +100,12 @@ def _canonical_row(cid: str, g: pd.DataFrame, grouped: bool) -> dict:
     rep = g.sort_values(["_obs", "resolution"], ascending=[False, True]).iloc[0]
     n_struct = g[["pdb_id", "auth_asym_id"]].drop_duplicates().shape[0]
     label, conf, dd_cv, angle_std = _rigidity(g)
-    seq = rep["ss_sequence"] or ""
+    coil_seq = rep["ss_sequence"] or ""
+    # a zero-length (SSE-spanning) junction has no coil linker; the graftable connector is the
+    # continuous helix/strand across the junction, so show a window of its flanking SSE sequence
+    window = (str(rep.get("flank_n_seq") or "")[-6:] + str(rep.get("flank_c_seq") or "")[:6])
+    linker_class = "coil" if rep["ss_length"] > 0 else (rep["junction_ss"] or "sse_spanning")
+    seq = coil_seq if coil_seq else window
     liab = developability.scan(seq)
     e2e = g["end_to_end"].dropna().to_numpy(dtype=float)
     dd = g["dom_dist"].dropna().to_numpy(dtype=float)
@@ -119,6 +124,8 @@ def _canonical_row(cid: str, g: pd.DataFrame, grouped: bool) -> dict:
         "rep_chain": rep["auth_asym_id"],
         "best_resolution": float(g["resolution"].min()) if g["resolution"].notna().any() else None,
         "sequence": seq,
+        "coil_sequence": coil_seq,
+        "linker_class": linker_class,
         "length_median": float(g["ss_length"].median()),
         "length_min": int(g["ss_length"].min()),
         "length_max": int(g["ss_length"].max()),
@@ -149,7 +156,8 @@ def _canonical_row(cid: str, g: pd.DataFrame, grouped: bool) -> dict:
 def aggregate(instances: pd.DataFrame, qc_only: bool = True) -> pd.DataFrame:
     """Group linker instances into canonical linkers (one row each)."""
     df = instances[instances["qc_pass"]] if qc_only and "qc_pass" in instances else instances
-    df = df[df["ss_length"] > 0] if "ss_length" in df else df   # a linker with no residues is not a sample
+    # zero-length junctions are kept: a continuous helix/strand across the junction is a valid
+    # (rigid) connector for design, labelled via linker_class rather than dropped.
     rows: list[dict] = []
     # grouped: have a UniProt accession and interval
     mapped = df[df["uniprot"].notna() & df["unp_lo"].notna() & df["unp_hi"].notna()]

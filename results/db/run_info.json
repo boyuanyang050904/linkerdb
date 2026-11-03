@@ -1,0 +1,28 @@
+{
+  "linkerdb_version": "0.1.0",
+  "created": "2026-11-03 01:47:11 UTC",
+  "domain_source": "CATH v4.4.0",
+  "domain_source_notes": [
+    "using CATH v4.4.0"
+  ],
+  "rules": {
+    "max_ext": 15,
+    "flank": 10,
+    "long_gap": 30,
+    "peptide_cn_max": 2.0,
+    "ca_ca_max": 4.2,
+    "ca_step_max": 3.8,
+    "ca_tol": 0.5,
+    "domain_len_tol": 2,
+    "dedup_window": 20,
+    "dedup_identity": 0.4,
+    "max_resolution": 2.5,
+    "tries_per_cluster": 3
+  },
+  "mode": "database",
+  "n_candidate_chains": 102283,
+  "n_entries": 52514,
+  "n_instances": 106869,
+  "n_canonical": 27266,
+  "n_canonical_grouped": 27266
+}

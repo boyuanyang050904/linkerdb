@@ -27,8 +27,11 @@ def check(name, ok, detail=""):
 ok = inst[inst["qc_pass"]]
 check("instances: qc_pass resolution <= 2.5", (ok["resolution"] <= 2.5).all(), f"max {ok['resolution'].max()}")
 check("instances: no NMR", not ok["method"].str.contains("NMR").any())
-check("canonical built only from qc_pass, ss_length>0", True)  # by construction in aggregate()
 check("canonical ids unique", canon["canonical_id"].is_unique)
+check("linker_class vocabulary",
+      set(canon["linker_class"]) <= {"coil", "helix_spanning", "strand_spanning", "sse_abutting"})
+check("coil linkers carry a coil sequence",
+      (canon.loc[canon["linker_class"] == "coil", "coil_sequence"].str.len() > 0).all())
 check("grouped linkers have a UniProt interval",
       canon[canon["grouped"]][["unp_lo", "unp_hi"]].notna().all().all())
 check("n_structures >= 1 and <= distinct chains per canonical", (canon["n_structures"] >= 1).all())

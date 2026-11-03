@@ -87,10 +87,17 @@ def test_aggregate_groups_and_singletons():
     assert out.loc[~out["grouped"], "canonical_id"].iloc[0] == "2xxx_A_1"
 
 
-def test_aggregate_drops_zero_length_and_failed():
-    rows = pd.DataFrame([_inst("1aaa", "P1", 100, 110, 30.0, ss_len=0),
+def test_aggregate_keeps_spanning_drops_failed():
+    # a zero-length (SSE-spanning) junction is kept and labelled; a qc-failed one is dropped
+    rows = pd.DataFrame([dict(_inst("1aaa", "P1", 100, 110, 30.0, ss_len=0, ss="helix_spanning"),
+                              ss_sequence="", flank_n_seq="AAAEEEHHHHHH", flank_c_seq="HHHHHHKKKAAA"),
                          dict(_inst("1bbb", "P1", 100, 110, 30.0), qc_pass=False)])
-    assert aggregate(rows).empty
+    out = aggregate(rows)
+    assert len(out) == 1
+    r = out.iloc[0]
+    assert r["linker_class"] == "helix_spanning" and r["length_median"] == 0
+    assert r["coil_sequence"] == "" and r["sequence"]        # window from the flanking helix
+    assert r["rigidity"] == "rigid_helical"
 
 
 # ---------------------------------------------------------------- retrieval

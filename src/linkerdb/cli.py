@@ -173,7 +173,7 @@ def cmd_query(args) -> int:
     hits = query_canonical(df, distance=args.distance, distance_tol=args.distance_tol, rigidity=args.rigidity,
                            human_only=args.human, min_length=args.min_length, max_length=args.max_length,
                            min_structures=args.min_structures, no_glyc=args.no_glyc, no_cys=args.no_cys,
-                           max_liability=args.max_liability, top=args.top)
+                           max_liability=args.max_liability, linker_class=args.linker_class, top=args.top)
     print(format_hits(hits))
     return 0
 
@@ -258,6 +258,8 @@ def main(argv=None) -> int:
     s.add_argument("--distance", type=float, help="target inter-domain COM distance (Å)")
     s.add_argument("--distance-tol", type=float, default=5.0)
     s.add_argument("--rigidity", choices=["rigid", "flexible", "any"])
+    s.add_argument("--linker-class", choices=["coil", "helix_spanning", "strand_spanning", "sse_abutting"],
+                   help="coil = a distinct linker segment; *_spanning = a continuous SSE connector")
     s.add_argument("--human", action="store_true")
     s.add_argument("--min-length", type=int)
     s.add_argument("--max-length", type=int)

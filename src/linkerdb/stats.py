@@ -27,6 +27,9 @@ def summarize_canonical(canonical: pd.DataFrame, instances: pd.DataFrame | None 
     multi = c[c["n_structures"] >= 3]
     lines.append(f"with >=3 structures (rigidity assessable): {len(multi)} ({len(multi) / len(c):.0%}); "
                  f"max structures for one linker: {int(c['n_structures'].max())}")
+    if "linker_class" in c:
+        lines.append("linker class: " + ", ".join(f"{k}={v}" for k, v in c["linker_class"].value_counts().items())
+                     + "  (coil = distinct linker segment; *_spanning = continuous-SSE connector)")
     lines.append("rigidity: " + ", ".join(f"{k}={v}" for k, v in c["rigidity"].value_counts().items()))
     lines.append("rigidity confidence: " + ", ".join(f"{k}={v}" for k, v in
                                                       c["rigidity_confidence"].value_counts().items()))
