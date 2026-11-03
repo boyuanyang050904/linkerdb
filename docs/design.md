@@ -172,6 +172,10 @@ SIFTS 没有收录的链回退到 mmCIF 的 `_struct_ref_seq`。之所以 SIFTS 
 
 ## 8. 数据集构建
 
+> **v3 note**:§8–§11 记录的是第一阶段的"非冗余集"流程(代表链选择 + linker 级去冗余),作为 provenance 保留。
+> v3 起产物改为数据库(§13),**linker 级去冗余的代码(`dedup_linkers` 及其 k-mer 预筛、序列比对)已删除**,
+> `results/full/` 不再保留——非冗余改由实例上的 `cluster40` 标记表示。`results/sample50/` 仍用于验证提取规则。
+
 ### 8.1 小样本（50 个结构）
 
 从 CATH 多结构域链对应的 PDB entry 中，用固定随机种子抽 **40 个衍射结构 + 10 个 NMR 结构**（共 50 个），

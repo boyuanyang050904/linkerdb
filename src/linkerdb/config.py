@@ -59,8 +59,7 @@ class Rules:
     ca_step_max: float = 3.80      # max CA-CA distance per sequence step (geometry QC) ...
     ca_tol: float = 0.50           # ... plus this tolerance (real trans CA-CA spans 3.75-3.95 Å)
     domain_len_tol: int = 2        # tolerated |observed - CATH length| per domain
-    dedup_window: int = 20         # flanking residues stored in window_seq (context for users)
-    dedup_identity: float = 0.40   # full-chain identity threshold for linker-level dedup
+    context_window: int = 20       # flanking residues stored in window_seq (context for users)
     max_resolution: float = 2.5    # inclusive
     tries_per_cluster: int = 3
 

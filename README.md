@@ -67,9 +67,10 @@ Other files: `chains.parquet` (per-chain status), `candidates.parquet` (candidat
 helix_spanning 1,532, strand_spanning 1,337, sse_abutting 236. `python scripts/check_database.py results/db`
 re-runs the invariant checks.
 
-`results/full/` and `results/sample50/` are the first-stage non-redundant set and the validation sample
-(`docs/design.md` §8–§11). Roadmap (golden-set calibration, artificial-linker comparison, ECOD/antibody
-coverage, AlphaFold layer) is `docs/design.md` §13.7.
+`results/sample50/` is the validation sample for the extraction rules (`docs/design.md` §8–§11). The
+first-stage non-redundant build and its linker-level dedup were retired in v3 (the database groups by
+UniProt region instead of deleting redundant linkers). Roadmap (golden-set calibration, artificial-linker
+comparison, ECOD/antibody coverage, AlphaFold layer) is `docs/design.md` §13.7.
 
 ## Tests
 

@@ -424,7 +424,7 @@ def extract_linkers(chain: Chain, mapped: MappedChain, ss: str, rules: Rules = R
             "unp_lo": unp_pos[0] if unp_pos else None,
             "unp_hi": unp_pos[-1] if unp_pos else None,
             "n_mutations": n_mut,
-            "window_seq": _seq(chain, lo - rules.dedup_window, hi + rules.dedup_window),
+            "window_seq": _seq(chain, lo - rules.context_window, hi + rules.context_window),
             "numbering_check": mapped.numbering_check,
             "qc_flags": sorted(set(flags)),
         }

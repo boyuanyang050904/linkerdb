@@ -1,10 +1,11 @@
 """Command-line interface.
 
-    linkerdb fetch-meta                 # CATH files + wwPDB/RCSB indices
-    linkerdb sample  --out results/sample50
-    linkerdb build   --out results/full --max-resolution 2.5
-    linkerdb summary results/full/linkers.parquet
+    linkerdb fetch-meta                 # CATH files + wwPDB/RCSB indices + SIFTS
+    linkerdb build   --out results/db   # all multi-domain chains -> instances + canonical linkers
+    linkerdb query   --distance 25 --rigidity rigid --human
+    linkerdb summary results/db/linkers_instances.parquet
     linkerdb show 13pk_A_1
+    linkerdb sample  --out results/sample50   # validation sample for the extraction rules
 """
 
 from __future__ import annotations
@@ -28,8 +29,7 @@ from .download import Downloader, fetch_structure
 from .linkers import ChainSkip, chain_ss, extract_linkers, map_domains, natural_problem
 from .pipeline import Run, _json_default, write_outputs
 from .retrieve import format_hits, query_canonical
-from .selection import (attach_clusters, candidate_chains, chains_of_entries, dedup_linkers, rank_candidates,
-                        sample_entries)
+from .selection import attach_clusters, candidate_chains, chains_of_entries, sample_entries
 from .sifts import fetch_sifts, load_sifts
 from .sources import fetch_entity_info, fetch_indices, parse_clusters, parse_entry_type, parse_resolu
 from .stats import show_linker, summarize, summarize_canonical

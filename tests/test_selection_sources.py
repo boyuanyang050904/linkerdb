@@ -6,8 +6,8 @@ import pytest
 from linkerdb.domains import CathProvider
 from linkerdb.domains.cath import cath_paths
 from linkerdb.download import DownloadError
-from linkerdb.selection import (align_pair, attach_clusters, candidate_chains, chains_of_entries, dedup_linkers,
-                                diagonal_hits, identity, kmer_index, map_position, rank_candidates, sample_entries)
+from linkerdb.selection import (attach_clusters, candidate_chains, chains_of_entries, rank_candidates,
+                                sample_entries)
 from linkerdb.sifts import fetch_sifts, load_sifts
 from linkerdb.sources import (fetch_entity_info, fetch_indices, index_paths, parse_clusters, parse_entry_type,
                               parse_resolu)
@@ -121,69 +121,3 @@ def test_attach_clusters_unmapped_and_chain_zero():
                                    "uniprot_ids": []}]}}
     df = attach_clusters(cands, ents, {"1ABC_1": 7}, {})
     assert df["cluster"].tolist() == ["c7", "single:2ABC_1", "nomap:3abcA"]
-
-
-def test_alignment_helpers():
-    a = "MKTAYIAKQRQISFVKSHFSRQ"
-    assert identity(a, a) == 1.0 and identity(a, "") == 0.0
-    ident, aln = align_pair("XXXX" + a, a)
-    assert ident == 1.0
-    assert map_position(aln, 5) == 1 and map_position(aln, 1) == 1  # overhang maps to nearest block
-    assert identity("MKTAUYIAKQ", "MKTACYIAKQ") == 0.9  # selenocysteine (U) is not in BLOSUM62: no crash
-
-
-def _lk(lid, pdb, chain, acc, lo, hi, cath_n="1.1.1.1", cath_c="2.2.2.2", res=2.0, ss=(10, 12)):
-    return {"linker_id": lid, "pdb_id": pdb, "auth_asym_id": chain, "uniprot": acc, "unp_lo": lo, "unp_hi": hi,
-            "cath_n": cath_n, "cath_c": cath_c, "resolution": res, "junction_index": 1,
-            "ss_start": ss[0], "ss_end": ss[1]}
-
-
-def test_dedup_linkers():
-    seq = "MKTAYIAKQRQISFVKSHFSRQLEERLGLIEVQAPILSRVGDGTQDNLSGAEKAVQVKVKALPDAQFEVVHSLAKWKRQTLGQHDFSAGEGLYTHMKALRPDEDRLSPLHSVYVDQWDWERVMGDGERQFSTLKSTVEAIWAGIKATEAAVSEEFGLAPFLPDQIHFVHSQELLSRYPDLDAKGRERAIAKDLGAVFLVGIGGKLSDGHRHDVRAPDYDDWSTPSELGHAGLNGDILVWNPVLEDAFELSSMGIRVDADTLKHQLALTGDEDRLKLEWHQALLRGEMPQTIGGGIGQSRLTMLLLQLPHIGQVQCGVWPAACRESVKEALV"
-    mutant = seq[:100] + "W" * 20 + seq[120:]
-    unrelated = "".join(reversed(seq))
-    df = pd.DataFrame([
-        _lk("a_A_1", "aaaa", "A", "P1", 100, 110, res=1.5),
-        _lk("a_A_2", "aaaa", "A", "P1", 105, 115, res=1.5),          # same chain: never compared
-        _lk("b_A_1", "bbbb", "A", "P1", 108, 120, res=2.0),          # same UniProt region as a_A_1
-        _lk("c_A_1", "cccc", "A", "P9", 1, 5, res=2.2, ss=(10, 12)),   # homolog of a (different accession)
-        _lk("d_A_1", "dddd", "A", "P8", 1, 5, res=2.3, ss=(200, 202)),  # homolog chain but other junction
-        _lk("e_A_1", "eeee", "A", "P7", 1, 5, res=2.4),               # unrelated sequence
-        _lk("f_A_1", "ffff", "A", None, None, None, cath_n=None, res=2.5),
-    ])
-    seqs = {("aaaa", "A"): seq, ("bbbb", "A"): seq, ("cccc", "A"): mutant, ("dddd", "A"): mutant,
-            ("eeee", "A"): unrelated, ("ffff", "A"): seq}
-    out = dedup_linkers(df, ["resolution", "linker_id"], 0.4, chain_seqs=seqs)
-    dropped = out.attrs["dropped"]
-    assert set(out["linker_id"]) == {"a_A_1", "a_A_2", "d_A_1", "e_A_1", "f_A_1"}
-    assert dropped["b_A_1"].startswith("same_uniprot_region:a_A_1")
-    assert dropped["c_A_1"].startswith("homologous_chain:a_A_1")
-    # without chain sequences only the UniProt rule applies
-    assert set(dedup_linkers(df, ["resolution"])["linker_id"]) == set(df["linker_id"]) - {"b_A_1"}
-
-
-def test_diagonal_hits_prefilter():
-    import random
-    rnd = random.Random(3)
-    a = "".join(rnd.choice("ACDEFGHIKLMNPQRSTVWY") for _ in range(300))
-    b = "".join(rnd.choice("ACDEFGHIKLMNPQRSTVWY") for _ in range(300))
-    shifted = "GGGGGGGGGG" + a[:150] + "W" + a[150:]  # same protein with an extension and an insertion
-    assert diagonal_hits(kmer_index(a), kmer_index(a)) >= 298  # whole main diagonal (+ chance repeats)
-    assert diagonal_hits(kmer_index(a), kmer_index(shifted)) >= 140
-    assert diagonal_hits(kmer_index(a), kmer_index(b)) < 5
-    assert diagonal_hits(kmer_index("AC"), kmer_index(a)) == 0
-    assert diagonal_hits(kmer_index("ACDE"), kmer_index("ACDE")) == 2  # shorter than one band
-    assert kmer_index("")[2] == 0
-
-
-def test_dedup_alignment_cache_is_persistent(tmp_path):
-    seq = "MKTAYIAKQRQISFVKSHFSRQLEERLGLIEVQAPILSRVGDGTQDNLSGAEKAVQVKVKALPDAQFEVVHSLAKWKRQTLGQHDFSAGEGLYTHMKALRPDEDRLS"
-    df = pd.DataFrame([_lk("a_A_1", "aaaa", "A", "P1", 1, 5, res=1.5), _lk("c_A_1", "cccc", "A", "P9", 1, 5, res=2.0)])
-    seqs = {("aaaa", "A"): seq, ("cccc", "A"): seq[:60] + "W" * 10 + seq[70:]}
-    cache = tmp_path / "aln.jsonl"
-    first = dedup_linkers(df, ["resolution"], 0.4, chain_seqs=seqs, cache_path=cache)
-    assert first.attrs["dropped"] and df.attrs["n_alignments"] == 1
-    with open(cache, "a") as fh:
-        fh.write('{"k": "trunc')  # interrupted append
-    second = dedup_linkers(df, ["resolution"], 0.4, chain_seqs=seqs, cache_path=cache)
-    assert df.attrs["n_alignments"] == 0 and second.attrs["dropped"] == first.attrs["dropped"]
