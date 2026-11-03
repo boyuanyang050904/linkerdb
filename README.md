@@ -19,6 +19,7 @@ linkerdb fetch-meta                    # CATH v4.4.0, wwPDB indices, RCSB cluste
 linkerdb build --out results/db        # all multi-domain chains <= 2.5 Å -> instances + canonical linkers
 linkerdb query --distance 25 --rigidity rigid --human --no-glyc --min-structures 3
 linkerdb score-golden                  # check rigidity calls against the seed golden set
+linkerdb score-swaps                   # retrospective check of the reach/rigidity models vs linker-swap experiments
 linkerdb show 5t6i_A_1 13pk_A_1        # readable view of one junction (sequence / CATH / DSSP tracks)
 linkerdb sample --out results/sample50 # 50-entry validation sample (for checking the extraction rules)
 ```
@@ -74,6 +75,12 @@ Two analyses live under `scripts/` and `docs/`: `compare_artificial.py` →
 `docs/artificial_comparison.md` (natural vs (G4S)n/EAAAK), and the superposition rigidity metric
 (`superpose.py`), validated on the golden set by `superpose_golden.py` and folded into the database
 DB-wide by `superpose_db.py` (`rigidity_final`; `docs/design.md` §15).
+
+Two retrospective checks guard the rigidity/geometry calls against reality: `score-golden` (rigidity
+labels vs the conformational behaviour of known multi-domain proteins, §14) and `score-swaps` (the
+reach/rigidity *models* vs published linker-swap experiments — scFv length→oligomer crossover, EAAAK
+vs GS FRET sensors, §16). Both ship seed sets (`golden/`), honestly flagged as recollection-based and
+awaiting citation-curated expansion.
 
 `results/sample50/` is the validation sample for the extraction rules (`docs/design.md` §8–§11). The
 first-stage non-redundant build and its linker-level dedup were retired in v3 (the database groups by

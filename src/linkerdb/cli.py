@@ -6,6 +6,8 @@
     linkerdb summary results/db/linkers_instances.parquet
     linkerdb show 13pk_A_1
     linkerdb sample  --out results/sample50   # validation sample for the extraction rules
+    linkerdb score-golden --canonical results/db/linkers_canonical.parquet
+    linkerdb score-swaps                       # retrospective check vs linker-swap experiments
 """
 
 from __future__ import annotations
@@ -35,6 +37,7 @@ from .sifts import fetch_sifts, load_sifts
 from .sources import fetch_entity_info, fetch_indices, parse_clusters, parse_entry_type, parse_resolu
 from .stats import show_linker, summarize, summarize_canonical
 from .structure import load_structure
+from .swaps import load_swaps, score_swaps, summary as swap_summary
 
 log = logging.getLogger("linkerdb")
 
@@ -189,6 +192,15 @@ def cmd_score_golden(args) -> int:
     return 0
 
 
+def cmd_score_swaps(args) -> int:
+    scored = score_swaps(load_swaps() if not args.swaps else load_swaps(args.swaps))
+    print(swap_summary(scored))
+    if args.out:
+        scored.to_csv(args.out, index=False)
+        print(f"wrote {args.out}")
+    return 0
+
+
 def cmd_summary(args) -> int:
     linkers = pd.read_parquet(args.linkers)
     chains_path = Path(args.linkers).with_name("chains.parquet")
@@ -286,6 +298,12 @@ def main(argv=None) -> int:
     s.add_argument("--golden", help="golden-set CSV (default: bundled golden/golden_set.csv)")
     s.add_argument("--out", help="write the per-entry scoring table to this CSV")
     s.set_defaults(func=cmd_score_golden)
+
+    s = sub.add_parser("score-swaps",
+                       help="check the library's reach/rigidity models against published linker-swap experiments")
+    s.add_argument("--swaps", help="linker-swap CSV (default: bundled golden/linker_swap_set.csv)")
+    s.add_argument("--out", help="write the per-comparison scoring table to this CSV")
+    s.set_defaults(func=cmd_score_swaps)
 
     s = sub.add_parser("summary", help="print statistics of a linkers parquet file")
     s.add_argument("linkers")
