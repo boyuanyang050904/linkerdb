@@ -49,11 +49,13 @@ def score_golden(golden: pd.DataFrame, canonical: pd.DataFrame) -> pd.DataFrame:
                          "match": None})
             continue
         top = m.sort_values("n_structures", ascending=False).iloc[0]
-        ours = coarse(top["rigidity"])
+        label = top["rigidity_final"] if "rigidity_final" in m.columns and pd.notna(top.get("rigidity_final")) \
+            else top["rigidity"]
+        ours = coarse(label)
         match = None if ours == "intermediate" else (ours == e.expected_rigidity)
         rows.append({
             "protein": e.protein, "uniprot": e.uniprot, "expected": e.expected_rigidity,
-            "confidence": e.confidence, "found": True, "ours": ours, "rigidity": top["rigidity"],
+            "confidence": e.confidence, "found": True, "ours": ours, "rigidity": label,
             "canonical_id": top["canonical_id"], "n_structures": int(top["n_structures"]),
             "rigidity_confidence": top["rigidity_confidence"],
             "dom_dist_cv": top.get("dom_dist_cv"), "elbow_angle_std": top.get("elbow_angle_std"),

@@ -157,3 +157,18 @@ def test_rigidity_angle_range_catches_rotation():
     rows = [_inst(p, "P8", 40, 60, dom_dist=30.0 + 0.1 * i, ang=120 + i)
             for i, p in enumerate(["2a", "2b", "2c", "2d", "2e"])]
     assert aggregate(pd.DataFrame(rows)).iloc[0]["rigidity"] == "rigid"
+
+
+def test_group_instances_membership():
+    from linkerdb.aggregate import group_instances
+    rows = pd.DataFrame([
+        _inst("1aaa", "P1", 100, 110, 30.0), _inst("1bbb", "P1", 102, 112, 30.0),  # one group
+        _inst("1ccc", "P1", 300, 320, 30.0),                                         # separate
+        dict(_inst("2xxx", None, None, None, 25.0), unp_lo=None),                    # ungrouped singleton
+        dict(_inst("3yyy", "P2", 5, 9, 30.0), qc_pass=False),                        # filtered out
+    ])
+    groups = {cid: (len(sub), grouped) for cid, sub, grouped in group_instances(rows)}
+    assert groups["P1:101-111"] == (2, True)  # interval = median of members
+    assert groups["P1:300-320"] == (1, True)
+    assert groups["2xxx_A_1"] == (1, False)
+    assert not any("3yyy" in c for c in groups)   # qc_pass=False dropped

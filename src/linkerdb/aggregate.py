@@ -159,26 +159,34 @@ def _canonical_row(cid: str, g: pd.DataFrame, grouped: bool) -> dict:
     }
 
 
-def aggregate(instances: pd.DataFrame, qc_only: bool = True) -> pd.DataFrame:
-    """Group linker instances into canonical linkers (one row each)."""
-    df = instances[instances["qc_pass"]] if qc_only and "qc_pass" in instances else instances
-    # zero-length junctions are kept: a continuous helix/strand across the junction is a valid
-    # (rigid) connector for design, labelled via linker_class rather than dropped.
-    rows: list[dict] = []
-    # grouped: have a UniProt accession and interval
-    mapped = df[df["uniprot"].notna() & df["unp_lo"].notna() & df["unp_hi"].notna()]
-    for acc, g in mapped.groupby("uniprot"):
+def _qc_filter(instances: pd.DataFrame, qc_only: bool) -> pd.DataFrame:
+    return instances[instances["qc_pass"]] if qc_only and "qc_pass" in instances else instances
+
+
+def group_instances(instances: pd.DataFrame, qc_only: bool = True):
+    """Yield ``(canonical_id, member_df, grouped)`` using the exact canonical grouping
+    (UniProt accession + overlapping interval; ungrouped instances become singletons).
+
+    Shared by :func:`aggregate` and the DB-wide superposition so the canonical ids match.
+    Zero-length junctions are kept (a continuous SSE connector is a valid rigid linker).
+    """
+    df = _qc_filter(instances, qc_only)
+    has_unp = df["uniprot"].notna() & df["unp_lo"].notna() & df["unp_hi"].notna()
+    for acc, g in df[has_unp].groupby("uniprot"):
         g = g.reset_index(drop=True)
         intervals = [(int(min(lo, hi)), int(max(lo, hi)), i)
                      for i, (lo, hi) in enumerate(zip(g["unp_lo"], g["unp_hi"]))]
         for members in _merge_intervals(intervals):
             sub = g.iloc[members]
             lo, hi = int(sub["unp_lo"].median()), int(sub["unp_hi"].median())
-            rows.append(_canonical_row(f"{acc}:{lo}-{hi}", sub, grouped=True))
-    # ungrouped: no usable UniProt mapping -> one canonical per instance
-    for _, r in df[~(df["uniprot"].notna() & df["unp_lo"].notna() & df["unp_hi"].notna())].iterrows():
-        rows.append(_canonical_row(r["linker_id"], pd.DataFrame([r]), grouped=False)
-                    | {"grouped": False})
+            yield f"{acc}:{lo}-{hi}", sub, True
+    for _, r in df[~has_unp].iterrows():
+        yield r["linker_id"], pd.DataFrame([r]), False
+
+
+def aggregate(instances: pd.DataFrame, qc_only: bool = True) -> pd.DataFrame:
+    """Group linker instances into canonical linkers (one row each)."""
+    rows = [_canonical_row(cid, sub, grouped) for cid, sub, grouped in group_instances(instances, qc_only)]
     out = pd.DataFrame(rows)
     if not out.empty:
         out = out.sort_values(["n_structures", "uniprot", "unp_lo"], ascending=[False, True, True]).reset_index(

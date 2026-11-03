@@ -11,4 +11,4 @@ dist/
 # raw downloads and caches (large, reproducible)
 /data/
 # transient build logs (provenance is run_info.json)
-results/*/build.log
+results/*/*.log

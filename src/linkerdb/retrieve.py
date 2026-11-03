@@ -23,11 +23,16 @@ def query_canonical(df: pd.DataFrame, distance: float | None = None, distance_to
                     min_structures: int = 1, no_glyc: bool = False, no_cys: bool = False,
                     max_liability: int | None = None, linker_class: str | None = None,
                     top: int = 20) -> pd.DataFrame:
-    """Filter and rank canonical linkers. ``distance`` is the target domain-COM distance (Å)."""
+    """Filter and rank canonical linkers. ``distance`` is the target domain-COM distance (Å).
+
+    Rigidity is read from ``rigidity_final`` (superposition where available, else the
+    proxy) when that column is present, otherwise from the proxy ``rigidity``.
+    """
     q = df.copy()
+    rig_col = "rigidity_final" if "rigidity_final" in q.columns else "rigidity"
     if rigidity and rigidity != "any":
         allowed = RIGIDITY_GROUPS.get(rigidity, {rigidity})
-        q = q[q["rigidity"].isin(allowed)]
+        q = q[q[rig_col].isin(allowed)]
     if linker_class and "linker_class" in q:
         q = q[q["linker_class"] == linker_class]
     if human_only:
@@ -67,8 +72,10 @@ def format_hits(hits: pd.DataFrame) -> str:
         raw = getattr(r, "liability_tags", None)
         tags = ",".join(list(raw)) if raw is not None and len(raw) else "-"
         cls = getattr(r, "linker_class", "coil")
+        rig = getattr(r, "rigidity_final", None) or r.rigidity
+        src = (getattr(r, "rigidity_source", "") or "")[:4]
         lines.append(
-            f"{r.canonical_id:22s} len={r.length_median:>4.0f} {cls:14s} {r.rigidity:18s}({r.rigidity_confidence:4s}) "
+            f"{r.canonical_id:22s} len={r.length_median:>4.0f} {cls:14s} {rig:18s}({src or r.rigidity_confidence:4s}) "
             f"domΔ={_fmt(getattr(r, 'dom_dist_median', None))} domΔcv={_fmt(getattr(r, 'dom_dist_cv', None), 2)} "
             f"n={r.n_structures:>3d} {'human' if r.is_human else 'other':5s} [{tags}] {r.sequence}")
     return "\n".join(lines)

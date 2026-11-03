@@ -47,6 +47,15 @@ check("chimeras excluded from canonical layer",
 check("length_min <= length_median <= length_max",
       ((canon["length_min"] <= canon["length_median"]) & (canon["length_median"] <= canon["length_max"])).all())
 check("liability columns present", all(c in canon for c in ("n_glyc", "deamid_ng", "isomer_dg", "n_cys", "furin")))
+if "rigidity_final" in canon:
+    check("rigidity_final vocabulary",
+          set(canon["rigidity_final"]) <= {"rigid", "flexible", "intermediate", "rigid_helical",
+                                           "flexible_disordered", "strand_spanning", "undetermined"})
+    check("superposition used only where it could be computed",
+          (canon.loc[canon["rigidity_source"] == "superposition", "superpose_rigidity"].notna()
+           & (canon.loc[canon["rigidity_source"] == "superposition", "superpose_rigidity"] != "undetermined")).all())
+    check("superpose only on >=3 structures",
+          (canon.loc[canon["superpose_rigidity"].notna(), "n_structures"] >= 3).all())
 
 print()
 print("instances:", len(inst), "qc_pass:", int(ok["qc_pass"].sum()),
